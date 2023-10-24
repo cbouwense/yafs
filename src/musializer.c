@@ -34,7 +34,7 @@ int main(void)
     InitWindow(factor*16, factor*9, "Musializer");
     SetWindowIcon(logo);
     SetTargetFPS(60);
-    SetExitKey(KEY_NULL);
+    SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
 
     plug_init();
