@@ -393,15 +393,6 @@ static void callback(void *bufferData, unsigned int frames)
     }
 }
 
-#ifdef FEATURE_MICROPHONE
-static void ma_callback(ma_device *pDevice, void *pOutput, const void *pInput,ma_uint32 frameCount)
-{
-    callback((void*)pInput,frameCount);
-    (void)pOutput;
-    (void)pDevice;
-}
-#endif // FEATURE_MICROPHONE
-
 static Track *current_track(void)
 {
     if (0 <= p->current_track && (size_t) p->current_track < p->tracks.count) {
@@ -557,23 +548,22 @@ typedef enum {
     BS_CLICKED   = 2, // 10
 } Button_State;
 
-static int fullscreen_button(Rectangle preview_boundary)
+static int _FullscreenButton_(void)
 {
     Vector2 mouse = GetMousePosition();
 
     Rectangle fullscreen_button_boundary = {
-        preview_boundary.x + preview_boundary.width - HUD_BUTTON_SIZE - HUD_BUTTON_MARGIN,
-        preview_boundary.y + HUD_BUTTON_MARGIN,
+        mouse.x - HUD_BUTTON_SIZE/2,
+        mouse.y - HUD_BUTTON_SIZE/2,
         HUD_BUTTON_SIZE,
         HUD_BUTTON_SIZE,
     };
 
-    int hoverover = CheckCollisionPointRec(mouse, fullscreen_button_boundary);
-    int clicked = hoverover && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+    int is_hovered = CheckCollisionPointRec(mouse, fullscreen_button_boundary);
+    int clicked = is_hovered && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);    
 
-    Color color = hoverover ? COLOR_HUD_BUTTON_HOVEROVER : COLOR_HUD_BUTTON_BACKGROUND;
+    Color color = is_hovered ? COLOR_HUD_BUTTON_HOVEROVER : COLOR_HUD_BUTTON_BACKGROUND;
 
-    DrawRectangleRounded(fullscreen_button_boundary, 0.5, 20, color);
     float icon_size = 512;
     float scale = HUD_BUTTON_SIZE/icon_size*HUD_ICON_SCALE;
     Rectangle dest = {
@@ -583,23 +573,26 @@ static int fullscreen_button(Rectangle preview_boundary)
         icon_size*scale
     };
     size_t icon_index;
+
     if (!p->fullscreen) {
-        if (!hoverover) {
+        if (!is_hovered) {
             icon_index = 0;
         } else {
             icon_index = 1;
         }
     } else {
-        if (!hoverover) {
+        if (!is_hovered) {
             icon_index = 2;
         } else {
             icon_index = 3;
         }
     }
     Rectangle source = {icon_size*icon_index, 0, icon_size, icon_size};
+
+    DrawRectangleRounded(fullscreen_button_boundary, 0.5, 20, color);
     DrawTexturePro(assets_texture("./resources/icons/fullscreen.png"), source, dest, CLITERAL(Vector2){0}, 0, ColorBrightness(WHITE, -0.10));
 
-    return (clicked<<1) | hoverover;
+    return (clicked<<1) | is_hovered;
 }
 
 static float slider_get_value(float x, float lox, float hix)
@@ -732,12 +725,12 @@ static void volume_slider(Rectangle preview_boundary)
     }
 }
 
-static void preview_screen(void)
+static void _MainMenu_(void)
 {
     int w = GetRenderWidth();
     int h = GetRenderHeight();
 
-    const char *label = "adsf";
+    const char *label = "Schmungo";
     Color color = WHITE;
     Vector2 size = MeasureTextEx(p->font, label, p->font.baseSize, 0);
     Vector2 position = {
@@ -968,19 +961,8 @@ void plug_update(void)
     BeginDrawing();
     ClearBackground(COLOR_BACKGROUND);
 
-    if (!p->rendering) { // We are in the Preview Mode
-#ifdef FEATURE_MICROPHONE
-        if (p->capturing) {
-            capture_screen();
-        } else {
-            preview_screen();
-        }
-#else
-        preview_screen();
-#endif // FEATURE_MICROPHONE
-    } else { // We are in the Rendering Mode
-        rendering_screen();
-    }
+    _MainMenu_();
+    _FullscreenButton_();
 
     EndDrawing();
 }
