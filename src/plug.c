@@ -92,6 +92,13 @@ typedef struct {
     size_t capacity;
 } Textures;
 
+typedef struct Margin {
+    float top;
+    float right;
+    float bottom;
+    float left;
+} Margin;
+
 static void *assoc_find_(void *items, size_t item_size, size_t items_count, size_t item_value_offset, const char *key)
 {
     for (size_t i = 0; i < items_count; ++i) {
@@ -548,18 +555,26 @@ typedef enum {
     BS_CLICKED   = 2, // 10
 } Button_State;
 
-static int _FullscreenButton_(void)
+static float sch_vh(float vh) {
+    return GetRenderHeight() * vh * 0.01;
+}
+
+static float sch_vw(float vw) {
+    return GetRenderWidth() * vw * 0.01;
+}
+
+static int sch_DrawFullscreenButton(void)
 {
     Vector2 mouse = GetMousePosition();
 
-    Rectangle fullscreen_button_boundary = {
+    Rectangle follow_mouse_boundary = {
         mouse.x - HUD_BUTTON_SIZE/2,
         mouse.y - HUD_BUTTON_SIZE/2,
         HUD_BUTTON_SIZE,
         HUD_BUTTON_SIZE,
     };
 
-    int is_hovered = CheckCollisionPointRec(mouse, fullscreen_button_boundary);
+    int is_hovered = CheckCollisionPointRec(mouse, follow_mouse_boundary);
     int clicked = is_hovered && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);    
 
     Color color = is_hovered ? COLOR_HUD_BUTTON_HOVEROVER : COLOR_HUD_BUTTON_BACKGROUND;
@@ -567,8 +582,8 @@ static int _FullscreenButton_(void)
     float icon_size = 512;
     float scale = HUD_BUTTON_SIZE/icon_size*HUD_ICON_SCALE;
     Rectangle dest = {
-        fullscreen_button_boundary.x + fullscreen_button_boundary.width/2 - icon_size*scale/2,
-        fullscreen_button_boundary.y + fullscreen_button_boundary.height/2 - icon_size*scale/2,
+        follow_mouse_boundary.x + follow_mouse_boundary.width/2 - icon_size*scale/2,
+        follow_mouse_boundary.y + follow_mouse_boundary.height/2 - icon_size*scale/2,
         icon_size*scale,
         icon_size*scale
     };
@@ -589,10 +604,38 @@ static int _FullscreenButton_(void)
     }
     Rectangle source = {icon_size*icon_index, 0, icon_size, icon_size};
 
-    DrawRectangleRounded(fullscreen_button_boundary, 0.5, 20, color);
+    DrawRectangleRounded(follow_mouse_boundary, 0.5, 20, color);
     DrawTexturePro(assets_texture("./resources/icons/fullscreen.png"), source, dest, CLITERAL(Vector2){0}, 0, ColorBrightness(WHITE, -0.10));
 
     return (clicked<<1) | is_hovered;
+}
+
+static void sch_DrawMainMenu(void)
+{
+    int w = GetRenderWidth();
+    int h = GetRenderHeight();
+
+    const char *label = "Schmungo";
+    Color color = WHITE;
+    Vector2 size = MeasureTextEx(p->font, label, p->font.baseSize, 0);
+    Vector2 position = {
+        w/2 - size.x/2,
+        h/2 - size.y/2,
+    };
+    DrawTextEx(p->font, label, position, p->font.baseSize, 0, color);
+}
+
+static void sch_DrawCity(void)
+{
+    int w = GetRenderWidth();
+    int h = GetRenderHeight();
+
+    Color color = WHITE;
+    Vector2 size = { sch_vw(15), sch_vh(15) };
+    Margin m = { 15, 15, 15, 15 };
+    Vector2 position = { 0 + m.top, 0 + m.left };
+
+    DrawRectangleV(position, size, color);
 }
 
 static float slider_get_value(float x, float lox, float hix)
@@ -655,132 +698,6 @@ static void horz_slider(Rectangle boundary, float *value, bool *dragging)
         }
     }
 }
-
-static void volume_slider(Rectangle preview_boundary)
-{
-    Vector2 mouse = GetMousePosition();
-
-    static int expanded = false;
-    static bool dragging = false;
-
-    Rectangle volume_slider_boundary = {
-        preview_boundary.x + HUD_BUTTON_MARGIN,
-        preview_boundary.y + HUD_BUTTON_MARGIN,
-        HUD_BUTTON_SIZE,
-        HUD_BUTTON_SIZE,
-    };
-
-    size_t expanded_slots = 6;
-    if (expanded) volume_slider_boundary.width = expanded_slots*HUD_BUTTON_SIZE;
-
-    expanded = dragging || CheckCollisionPointRec(mouse, volume_slider_boundary);
-
-    Color color;
-    if (expanded) {
-        color = COLOR_HUD_BUTTON_HOVEROVER;
-    } else {
-        color = COLOR_HUD_BUTTON_BACKGROUND;
-    }
-    DrawRectangleRounded(volume_slider_boundary, 0.5, 20, color);
-
-    float icon_size = 512;
-    float scale = HUD_BUTTON_SIZE/icon_size*HUD_ICON_SCALE;
-    Rectangle dest = {
-        volume_slider_boundary.x + HUD_BUTTON_SIZE/2 - icon_size*scale/2,
-        volume_slider_boundary.y + HUD_BUTTON_SIZE/2 - icon_size*scale/2,
-        icon_size*scale,
-        icon_size*scale
-    };
-
-    // TODO: toggle mute on clicking the icon
-    // TODO: animate volume slider expansion
-    float volume = GetMasterVolume();
-
-    size_t icon_index;
-    if (volume <= 0) {
-        icon_index = 0;
-    } else {
-        size_t phases = 2;
-        icon_index = volume*phases;
-        if (icon_index >= phases) icon_index = phases - 1;
-        icon_index += 1;
-    }
-
-    Rectangle source = {icon_size*icon_index, 0, icon_size, icon_size};
-
-    DrawTexturePro(assets_texture("./resources/icons/volume.png"), source, dest, CLITERAL(Vector2){0}, 0, ColorBrightness(WHITE, -0.10));
-
-    if (expanded) {
-        horz_slider(CLITERAL(Rectangle) {
-            .x = volume_slider_boundary.x + HUD_BUTTON_SIZE,
-            .y = volume_slider_boundary.y,
-            .width = (expanded_slots - 1)*HUD_BUTTON_SIZE,
-            .height = HUD_BUTTON_SIZE,
-        }, &volume, &dragging);
-        float mouse_wheel_step = 0.05;
-        volume += GetMouseWheelMove()*mouse_wheel_step;
-        if (volume < 0) volume = 0;
-        if (volume > 1) volume = 1;
-        SetMasterVolume(volume);
-    }
-}
-
-static void _MainMenu_(void)
-{
-    int w = GetRenderWidth();
-    int h = GetRenderHeight();
-
-    const char *label = "Schmungo";
-    Color color = WHITE;
-    Vector2 size = MeasureTextEx(p->font, label, p->font.baseSize, 0);
-    Vector2 position = {
-        w/2 - size.x/2,
-        h/2 - size.y/2,
-    };
-    DrawTextEx(p->font, label, position, p->font.baseSize, 0, color);
-}
-
-#ifdef FEATURE_MICROPHONE
-static void capture_screen(void)
-{
-    int w = GetRenderWidth();
-    int h = GetRenderHeight();
-
-    if (p->microphone != NULL) {
-        if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_M)) {
-            ma_device_uninit(p->microphone);
-            p->microphone = NULL;
-            p->capturing = false;
-        }
-
-        size_t m = fft_analyze(GetFrameTime());
-        fft_render(CLITERAL(Rectangle) {
-            0, 0, GetRenderWidth(), GetRenderHeight()
-        }, m);
-    } else {
-        if (IsKeyPressed(KEY_ESCAPE)) {
-            p->capturing = false;
-        }
-
-        const char *label = "Capture Device Error: Check the Logs";
-        Color color = RED;
-        int fontSize = p->font.baseSize;
-        Vector2 size = MeasureTextEx(p->font, label, fontSize, 0);
-        Vector2 position = {
-            w/2 - size.x/2,
-            h/2 - size.y/2,
-        };
-        DrawTextEx(p->font, label, position, fontSize, 0, color);
-
-        label = "(Press ESC to Continue)";
-        fontSize = p->font.baseSize*2/3;
-        size = MeasureTextEx(p->font, label, fontSize, 0);
-        position.x = w/2 - size.x/2,
-        position.y = h/2 - size.y/2 + fontSize,
-        DrawTextEx(p->font, label, position, fontSize, 0, color);
-    }
-}
-#endif // FEATURE_MICROPHONE
 
 void rendering_screen(void)
 {
@@ -908,7 +825,7 @@ void rendering_screen(void)
     }
 }
 
-void plug_init(void)
+void sch_init(void)
 {
     p = malloc(sizeof(*p));
     assert(p != NULL && "Buy more RAM lol");
@@ -933,7 +850,7 @@ void plug_init(void)
     SetMasterVolume(0.5);
 }
 
-Plug *plug_pre_reload(void)
+Plug *sch_pre_reload(void)
 {
     for (size_t i = 0; i < p->tracks.count; ++i) {
         Track *it = &p->tracks.items[i];
@@ -943,7 +860,7 @@ Plug *plug_pre_reload(void)
     return p;
 }
 
-void plug_post_reload(Plug *pp)
+void sch_post_reload(Plug *pp)
 {
     p = pp;
     for (size_t i = 0; i < p->tracks.count; ++i) {
@@ -956,13 +873,14 @@ void plug_post_reload(Plug *pp)
     p->circle_power_location = GetShaderLocation(p->circle, "power");
 }
 
-void plug_update(void)
+void sch_update(void)
 {
     BeginDrawing();
     ClearBackground(COLOR_BACKGROUND);
 
-    _MainMenu_();
-    _FullscreenButton_();
+    sch_DrawMainMenu();
+    sch_DrawFullscreenButton();
+    sch_DrawCity();
 
     EndDrawing();
 }

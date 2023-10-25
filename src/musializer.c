@@ -36,15 +36,26 @@ int main(void)
     SetTargetFPS(60);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
+    bool was_tabbed_out = false;
 
-    plug_init();
+    sch_init();
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_H)) {
-            void *state = plug_pre_reload();
+            void *state = sch_pre_reload();
             if (!reload_libplug()) return 1;
-            plug_post_reload(state);
+            sch_post_reload(state);
         }
-        plug_update();
+
+        if (IsWindowFocused() && was_tabbed_out) {
+            was_tabbed_out = false;
+            void *state = sch_pre_reload();
+            if (!reload_libplug()) return 1;
+            sch_post_reload(state);
+        } else if (!IsWindowFocused() && !was_tabbed_out) {
+            was_tabbed_out = true;
+        }
+
+        sch_update();
     }
 
     CloseAudioDevice();
