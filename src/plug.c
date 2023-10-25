@@ -375,11 +375,11 @@ static void fft_render(Rectangle boundary, size_t m)
             boundary.y + boundary.height - boundary.height*2/3*t,
         };
         float radius = cell_width*6*sqrtf(t);
-        Vector2 position = {
+        Vector2 pos = {
             .x = center.x - radius,
             .y = center.y - radius,
         };
-        DrawTextureEx(texture, position, 0, 2*radius, color);
+        DrawTextureEx(texture, pos, 0, 2*radius, color);
     }
     EndShaderMode();
 }
@@ -509,13 +509,13 @@ static void tracks_panel(Rectangle panel_boundary)
         float fontSize = item_boundary.height*0.5;
         float text_padding = item_boundary.width*0.05;
         Vector2 size = MeasureTextEx(p->font, text, fontSize, 0);
-        Vector2 position = {
+        Vector2 pos = {
             .x = item_boundary.x + text_padding,
             .y = item_boundary.y + item_boundary.height*0.5 - size.y*0.5,
         };
         // TODO: cut out overflown text
         // TODO: use SDF fonts
-        DrawTextEx(p->font, text, position, fontSize, 0, WHITE);
+        DrawTextEx(p->font, text, pos, fontSize, 0, WHITE);
     }
 
     // TODO: jump to specific place by clicking the scrollbar
@@ -561,6 +561,18 @@ static float sch_vh(float vh) {
 
 static float sch_vw(float vw) {
     return GetRenderWidth() * vw * 0.01;
+}
+
+static float sch_x_center(float width) {
+    return GetRenderWidth() / 2 - width / 2;
+}
+
+static float sch_y_center(float height) {
+    return GetRenderHeight() / 2 - height / 2;
+}
+
+static float sch_top(float height) {
+    return height;
 }
 
 static int sch_DrawFullscreenButton(void)
@@ -618,24 +630,34 @@ static void sch_DrawMainMenu(void)
     const char *label = "Schmungo";
     Color color = WHITE;
     Vector2 size = MeasureTextEx(p->font, label, p->font.baseSize, 0);
-    Vector2 position = {
+    Vector2 pos = {
         w/2 - size.x/2,
-        h/2 - size.y/2,
+        sch_top(size.y)
     };
-    DrawTextEx(p->font, label, position, p->font.baseSize, 0, color);
+    DrawTextEx(p->font, label, pos, p->font.baseSize, 0, color);
 }
 
-static void sch_DrawCity(void)
+static void sch_DrawCityGround(Vector2 pos, Vector2 size)
 {
-    int w = GetRenderWidth();
-    int h = GetRenderHeight();
+    Color color = GREEN;
 
-    Color color = WHITE;
-    Vector2 size = { sch_vw(15), sch_vh(15) };
-    Margin m = { 15, 15, 15, 15 };
-    Vector2 position = { 0 + m.top, 0 + m.left };
+    DrawEllipse(pos.x + size.x/2, pos.y + size.y, size.x, size.x/3, color);
+}
 
-    DrawRectangleV(position, size, color);
+static void sch_DrawCity(bool is_left)
+{
+    Color color = is_left ? RED : BLUE;
+    Vector2 size = { sch_vw(15), sch_vw(15) };
+    Vector2 pos = {
+        is_left ? sch_x_center(size.x) - sch_vw(25) :
+                        sch_x_center(size.x) + sch_vw(25),
+        sch_y_center(size.y)
+    };
+
+    {
+        sch_DrawCityGround(pos, size);
+        DrawRectangleV(pos, size, color);
+    }
 }
 
 static float slider_get_value(float x, float lox, float hix)
@@ -720,18 +742,18 @@ void rendering_screen(void)
         Color color = RED;
         int fontSize = p->font.baseSize;
         Vector2 size = MeasureTextEx(p->font, label, fontSize, 0);
-        Vector2 position = {
+        Vector2 pos = {
             w/2 - size.x/2,
             h/2 - size.y/2,
         };
-        DrawTextEx(p->font, label, position, fontSize, 0, color);
+        DrawTextEx(p->font, label, pos, fontSize, 0, color);
 
         label = "(Press ESC to Continue)";
         fontSize = p->font.baseSize*2/3;
         size = MeasureTextEx(p->font, label, fontSize, 0);
-        position.x = w/2 - size.x/2,
-        position.y = h/2 - size.y/2 + fontSize,
-        DrawTextEx(p->font, label, position, fontSize, 0, color);
+        pos.x = w/2 - size.x/2,
+        pos.y = h/2 - size.y/2 + fontSize,
+        DrawTextEx(p->font, label, pos, fontSize, 0, color);
     } else { // FFmpeg process is going
         // TODO: introduce a rendering mode that perfectly loops the video
         if ((p->wave_cursor >= p->wave.frameCount && fft_settled()) || IsKeyPressed(KEY_ESCAPE)) { // Rendering is finished or cancelled
@@ -760,11 +782,11 @@ void rendering_screen(void)
             Color color = WHITE;
 
             Vector2 size = MeasureTextEx(p->font, label, p->font.baseSize, 0);
-            Vector2 position = {
+            Vector2 pos = {
                 w/2 - size.x/2,
                 h/2 - size.y/2,
             };
-            DrawTextEx(p->font, label, position, p->font.baseSize, 0, color);
+            DrawTextEx(p->font, label, pos, p->font.baseSize, 0, color);
 
             // Progress bar
             float bar_width = w*2/3;
@@ -879,8 +901,8 @@ void sch_update(void)
     ClearBackground(COLOR_BACKGROUND);
 
     sch_DrawMainMenu();
-    sch_DrawFullscreenButton();
-    sch_DrawCity();
+    sch_DrawCity(true);
+    sch_DrawCity(false);
 
     EndDrawing();
 }

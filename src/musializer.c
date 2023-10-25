@@ -51,7 +51,7 @@ int main(void)
             void *state = sch_pre_reload();
             if (!reload_libplug()) return 1;
             sch_post_reload(state);
-        } else if (!IsWindowFocused() && !was_tabbed_out) {
+        } else if (!IsWindowFocused()) {
             was_tabbed_out = true;
         }
 
