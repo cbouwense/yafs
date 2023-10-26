@@ -60,70 +60,7 @@
 #endif
 
 typedef struct {
-    char *file_path;
-    Music music;
-} Track;
-
-typedef struct {
-    Track *items;
-    size_t count;
-    size_t capacity;
-} Tracks;
-
-typedef struct {
-    const char *key;
-    Image value;
-} Image_Item;
-
-typedef struct {
-    Image_Item *items;
-    size_t count;
-    size_t capacity;
-} Images;
-
-typedef struct {
-    const char *key;
-    Texture value;
-} Texture_Item;
-
-typedef struct {
-    Texture_Item *items;
-    size_t count;
-    size_t capacity;
-} Textures;
-
-typedef struct {
-    Images images;
-    Textures textures;
-} Assets;
-
-typedef struct {
-    Assets assets;
-
-    // Visualizer
-    Tracks tracks;
-    int current_track;
     Font font;
-    Shader circle;
-    int circle_radius_location;
-    int circle_power_location;
-    bool fullscreen;
-
-    // Renderer
-    bool rendering;
-    RenderTexture2D screen;
-    Wave wave;
-    float *wave_samples;
-    size_t wave_cursor;
-    FFMPEG *ffmpeg;
-
-    // FFT Analyzer
-    float in_raw[N];
-    float in_win[N];
-    Float_Complex out_raw[N];
-    float out_log[N];
-    float out_smooth[N];
-    float out_smear[N];
 } Plug;
 
 static Plug *p = NULL;
