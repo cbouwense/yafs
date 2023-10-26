@@ -26,35 +26,22 @@ int main(void)
     sigaction(SIGPIPE, &act, NULL);
 #endif // _WIN32
 
-    if (!reload_libplug()) return 1;
-
     Image logo = LoadImage("./resources/logo/logo-256.png");
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     size_t factor = 80;
     InitWindow(factor*16, factor*9, "Musializer");
     SetWindowIcon(logo);
-    SetTargetFPS(60);
+    SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
-    bool was_tabbed_out = false;
 
     sch_init();
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_H)) {
-            void *state = sch_pre_reload();
-            if (!reload_libplug()) return 1;
-            sch_post_reload(state);
+            sch_init();
         }
 
-        if (IsWindowFocused() && was_tabbed_out) {
-            was_tabbed_out = false;
-            void *state = sch_pre_reload();
-            if (!reload_libplug()) return 1;
-            sch_post_reload(state);
-        } else if (!IsWindowFocused()) {
-            was_tabbed_out = true;
-        }
-
+        DrawFPS(10, 10);
         sch_update();
     }
 
