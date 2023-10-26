@@ -1,2 +1,1 @@
-./nob
-./build/musializer
+./nob && ./build/musializer

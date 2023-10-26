@@ -186,8 +186,8 @@ typedef struct {
     Vector2 pos;
 } Soldier_State;
 
-static Soldier_State *s1 = NULL;
-static Soldier_State *s2 = NULL;
+static int soldier_count = 10;
+static Soldier_State *soldiers = NULL;
 
 static void sch_UpdateSoldier(Soldier_State *state)
 {
@@ -221,38 +221,26 @@ static void sch_DrawSoldier(Soldier_State *state)
 
 void sch_init(void)
 {
-    {
+    { // Initialize plug state
         p = malloc(sizeof(*p));
         assert(p != NULL && "Buy more RAM lol");
         memset(p, 0, sizeof(*p));
 
         p->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
-        GenTextureMipmaps(&p->font.texture);
-        SetTextureFilter(p->font.texture, TEXTURE_FILTER_BILINEAR);
-
-        p->circle = LoadShader(NULL, TextFormat("./resources/shaders/glsl%d/circle.fs", GLSL_VERSION));
-        p->circle_radius_location = GetShaderLocation(p->circle, "radius");
-        p->circle_power_location = GetShaderLocation(p->circle, "power");
-        p->screen = LoadRenderTexture(RENDER_WIDTH, RENDER_HEIGHT);
-        p->current_track = -1;
     }
 
-    {
-        s1 = malloc(sizeof(*s1));
-        assert(s1 != NULL && "Buy more RAM lol");
-        memset(s1, 0, sizeof(*s1));
+    { // Initialize soldiers state
+        soldiers = malloc(soldier_count * sizeof(*soldiers));
+        assert(soldiers != NULL && "Buy more RAM lol");
+        memset(soldiers, 0, soldier_count * sizeof(*soldiers));
 
-        s1->color = RED;
-        s1->pos = (Vector2) { sch_x_center(sch_vw(5)) - 100, sch_y_center(sch_vw(5)) };
-    }
-
-    {
-        s2 = malloc(sizeof(*s2));
-        assert(s2 != NULL && "Buy more RAM lol");
-        memset(s2, 0, sizeof(*s2));
-
-        s2->color = BLUE;
-        s2->pos = (Vector2) { sch_x_center(sch_vw(5)) + 100, sch_y_center(sch_vw(5)) };
+        for (int i = 0; i < soldier_count; i++) {
+            soldiers[i].color = RED;
+            soldiers[i].pos = (Vector2) { 
+                .x = sch_x_center(sch_vw(5)) - (500 - (i * 100)),
+                .y = sch_y_center(sch_vw(5))
+            };
+        }
     }
 
     SetMasterVolume(0.5);
@@ -264,9 +252,29 @@ void sch_update(void)
     ClearBackground(COLOR_BACKGROUND);
 
     sch_DrawMainMenu();
-    sch_DrawSoldier(s1);
-    // printf("s1: %f %f\n", s1->pos.x, s1->pos.y);
-    sch_DrawSoldier(s2);
+    // Draw all soldiers
+    for (int i = 0; i < soldier_count; i++) {
+        sch_DrawSoldier(&soldiers[i]);
+    }
 
+    if (IsKeyPressed(KEY_SPACE)) {
+        // Add a soldier
+        soldier_count++;
+        soldiers = realloc(soldiers, soldier_count * sizeof(*soldiers));
+        assert(soldiers != NULL && "Buy more RAM lol");
+        memset(&soldiers[soldier_count - 1], 0, sizeof(*soldiers));
+
+        soldiers[soldier_count - 1].color = RED;
+        soldiers[soldier_count - 1].pos = (Vector2) { 
+            .x = sch_x_center(sch_vw(5)) - (500 - ((soldier_count - 1) * 100)),
+            .y = sch_y_center(sch_vw(5))
+        };
+    }
+    
     EndDrawing();
+}
+
+void sch_cleanup() {
+    free(soldiers);
+    free(p);
 }

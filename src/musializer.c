@@ -45,6 +45,8 @@ int main(void)
         sch_update();
     }
 
+    sch_cleanup();
+
     CloseAudioDevice();
     CloseWindow();
     UnloadImage(logo);
