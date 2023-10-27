@@ -41,29 +41,22 @@
 #define HUD_BUTTON_MARGIN 50
 #define HUD_ICON_SCALE 0.5
 
-// Microsoft could not update their parser OMEGALUL:
-// https://learn.microsoft.com/en-us/cpp/c-runtime-library/complex-math-support?view=msvc-170#types-used-in-complex-math
-#ifdef _MSC_VER
-#    define Float_Complex _Fcomplex
-#    define cfromreal(re) _FCbuild(re, 0)
-#    define cfromimag(im) _FCbuild(0, im)
-#    define mulcc _FCmulcc
-#    define addcc(a, b) _FCbuild(crealf(a) + crealf(b), cimagf(a) + cimagf(b))
-#    define subcc(a, b) _FCbuild(crealf(a) - crealf(b), cimagf(a) - cimagf(b))
-#else
-#    define Float_Complex float complex
-#    define cfromreal(re) (re)
-#    define cfromimag(im) ((im)*I)
-#    define mulcc(a, b) ((a)*(b))
-#    define addcc(a, b) ((a)+(b))
-#    define subcc(a, b) ((a)-(b))
-#endif
-
 typedef struct {
     Font font;
 } Plug;
 
+typedef struct {
+    Color color;
+    Vector2 pos;
+} Unit_State;
+
+typedef struct {
+    int unit_count;
+    Unit_State *units;
+} Schmungo_State;
+
 static Plug *p = NULL;
+static Schmungo_State *state = NULL;
 
 typedef enum {
     BS_NONE      = 0, // 00
@@ -118,14 +111,6 @@ static void sch_DrawUnitGround(Vector2 pos, Vector2 size)
     );
 }
 
-typedef struct {
-    Color color;
-    Vector2 pos;
-} Unit_State;
-
-static int unit_count = 10;
-static Unit_State *units = NULL;
-
 static void sch_UpdateUnit(Unit_State *state)
 {
     if (IsKeyDown(KEY_A)) {
@@ -165,15 +150,19 @@ void sch_init(void)
 
         p->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
     }
-
-    { // Initialize units state
-        units = malloc(unit_count * sizeof(*units));
-        assert(units != NULL && "Buy more RAM lol");
-        memset(units, 0, unit_count * sizeof(*units));
-
-        for (int i = 0; i < unit_count; i++) {
-            units[i].color = RED;
-            units[i].pos = (Vector2) { 
+    
+    { // Initialize schmungo state
+        // Allocate space for the containing struct
+        state = malloc(sizeof(*state));
+        assert(state != NULL && "Buy more RAM lol");
+        memset(state, 0, sizeof(*state));
+        
+        // Allocate space for units
+        state->unit_count = 10;
+        state->units = malloc(state->unit_count * sizeof(*state->units));
+        for (int i = 0; i < state->unit_count; i++) {
+            state->units[i].color = RED;
+            state->units[i].pos = (Vector2) { 
                 .x = sch_x_center(sch_vw(5)) - (500 - (i * 100)),
                 .y = sch_y_center(sch_vw(5))
             };
@@ -190,20 +179,20 @@ void sch_update(void)
 
     sch_DrawMainMenu();
     // Draw all units
-    for (int i = 0; i < unit_count; i++) {
-        sch_DrawUnit(&units[i]);
+    for (int i = 0; i < state->unit_count; i++) {
+        sch_DrawUnit(&state->units[i]);
     }
 
     if (IsKeyPressed(KEY_SPACE)) {
         // Add a unit
-        unit_count++;
-        units = realloc(units, unit_count * sizeof(*units));
-        assert(units != NULL && "Buy more RAM lol");
-        memset(&units[unit_count - 1], 0, sizeof(*units));
+        state->unit_count++;
+        state->units = realloc(state->units, state->unit_count * sizeof(*state->units));
+        assert(state->units != NULL && "Buy more RAM lol");
+        memset(&state->units[state->unit_count - 1], 0, sizeof(*state->units));
 
-        units[unit_count - 1].color = RED;
-        units[unit_count - 1].pos = (Vector2) { 
-            .x = sch_x_center(sch_vw(5)) - (500 - ((unit_count - 1) * 100)),
+        state->units[state->unit_count - 1].color = RED;
+        state->units[state->unit_count - 1].pos = (Vector2) { 
+            .x = sch_x_center(sch_vw(5)) - (500 - ((state->unit_count - 1) * 100)),
             .y = sch_y_center(sch_vw(5))
         };
     }
@@ -212,6 +201,7 @@ void sch_update(void)
 }
 
 void sch_cleanup() {
-    free(units);
+    free(state->units);
+    free(state);
     free(p);
 }
