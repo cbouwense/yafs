@@ -190,7 +190,7 @@ defer:
     return result;
 }
 
-bool build_musializer(Config config)
+bool build_schmungo(Config config)
 {
     bool result = true;
     Nob_Cmd cmd = {0};
@@ -222,7 +222,7 @@ bool build_musializer(Config config)
                         if (config.microphone) nob_cmd_append(&cmd, "-DFEATURE_MICROPHONE");
                         nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
                         nob_cmd_append(&cmd, "-DHOTRELOAD");
-                        nob_cmd_append(&cmd, "-o", "./build/musializer");
+                        nob_cmd_append(&cmd, "-o", "./build/schmungo");
                         nob_cmd_append(&cmd,
                             "./src/schmungo.c",
                             "./src/hotreload_linux.c");
@@ -230,7 +230,7 @@ bool build_musializer(Config config)
                             "-Wl,-rpath=./build/",
                             "-Wl,-rpath=./",
                             nob_temp_sprintf("-Wl,-rpath=./build/raylib/%s", NOB_ARRAY_GET(target_names, config.target)),
-                            // NOTE: just in case somebody wants to run musializer from within the ./build/ folder
+                            // NOTE: just in case somebody wants to run schmungo from within the ./build/ folder
                             nob_temp_sprintf("-Wl,-rpath=./raylib/%s", NOB_ARRAY_GET(target_names, config.target)));
                         nob_cmd_append(&cmd,
                             nob_temp_sprintf("-L./build/raylib/%s", NOB_ARRAY_GET(target_names, config.target)),
@@ -245,10 +245,7 @@ bool build_musializer(Config config)
                     if (config.microphone) nob_cmd_append(&cmd, "-DFEATURE_MICROPHONE");
                     nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
                     nob_cmd_append(&cmd, "-o", "./build/schmungo");
-                    nob_cmd_append(&cmd,
-                        // "./src/plug.c",
-                        // "./src/ffmpeg_linux.c",
-                        "./src/schmungo.c");
+                    nob_cmd_append(&cmd, "./src/schmungo.c");
                     nob_cmd_append(&cmd,
                         nob_temp_sprintf("-L./build/raylib/%s", NOB_ARRAY_GET(target_names, config.target)),
                         "-l:libraylib.a");
@@ -268,11 +265,8 @@ bool build_musializer(Config config)
                 nob_cmd_append(&cmd, "-Wall", "-Wextra", "-g");
                 if (config.microphone) nob_cmd_append(&cmd, "-DFEATURE_MICROPHONE");
                 nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
-                nob_cmd_append(&cmd, "-o", "./build/musializer");
-                nob_cmd_append(&cmd,
-                    // "./src/plug.c",
-                    // "./src/ffmpeg_linux.c",
-                    "./src/schmungo.c");
+                nob_cmd_append(&cmd, "-o", "./build/schmungo");
+                nob_cmd_append(&cmd, "./src/schmungo.c");
                 nob_cmd_append(&cmd,
                     nob_temp_sprintf("./build/raylib/%s/libraylib.a", NOB_ARRAY_GET(target_names, config.target)));
 
@@ -293,9 +287,9 @@ bool build_musializer(Config config)
             } else {
                 cmd.count = 0;
                     nob_cmd_append(&cmd, "x86_64-w64-mingw32-windres");
-                    nob_cmd_append(&cmd, "./src/musializer.rc");
+                    nob_cmd_append(&cmd, "./src/schmungo.rc");
                     nob_cmd_append(&cmd, "-O", "coff");
-                    nob_cmd_append(&cmd, "-o", "./build/musializer.res");
+                    nob_cmd_append(&cmd, "-o", "./build/schmungo.res");
                 if (!nob_cmd_run_sync(cmd)) nob_return_defer(false);
 
                 cmd.count = 0;
@@ -303,13 +297,8 @@ bool build_musializer(Config config)
                     nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
                     if (config.microphone) nob_cmd_append(&cmd, "-DFEATURE_MICROPHONE");
                     nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
-                    nob_cmd_append(&cmd, "-o", "./build/musializer");
-                    nob_cmd_append(&cmd,
-                        // "./src/plug.c",
-                        // "./src/ffmpeg_windows.c",
-                        "./src/schmungo.c",
-                        "./build/musializer.res"
-                        );
+                    nob_cmd_append(&cmd, "-o", "./build/schmungo");
+                    nob_cmd_append(&cmd, "./src/schmungo.c", "./build/schmungo.res");
                     nob_cmd_append(&cmd,
                         nob_temp_sprintf("-L./build/raylib/%s", NOB_ARRAY_GET(target_names, config.target)),
                         "-l:libraylib.a");
@@ -328,13 +317,11 @@ bool build_musializer(Config config)
                     nob_cmd_append(&cmd, "cl.exe");
                     if (config.microphone) nob_cmd_append(&cmd, "/DFEATURE_MICROPHONE");
                     nob_cmd_append(&cmd, "/I", "./raylib/raylib-4.5.0/src/");
-                    nob_cmd_append(&cmd, "/Fobuild\\", "/Febuild\\musializer.exe");
+                    nob_cmd_append(&cmd, "/Fobuild\\", "/Febuild\\schmungo.exe");
                     nob_cmd_append(&cmd,
                         "./src/schmungo.c",
-                        // "./src/plug.c",
-                        // "./src/ffmpeg_windows.c"
                         // TODO: building resource file is not implemented for TARGET_WIN64_MSVC
-                        //"./build/musializer.res"
+                        //"./build/schmungo.res"
                         );
                     nob_cmd_append(&cmd,
                         "/link",
@@ -521,27 +508,27 @@ bool build_dist(Config config)
 
     switch (config.target) {
         case TARGET_LINUX: {
-            if (!nob_mkdir_if_not_exists("./musializer-linux-x86_64/")) return false;
-            if (!nob_copy_file("./build/musializer", "./musializer-linux-x86_64/musializer")) return false;
-            if (!nob_copy_directory_recursively("./resources/", "./musializer-linux-x86_64/resources/")) return false;
+            if (!nob_mkdir_if_not_exists("./schmungo-linux-x86_64/")) return false;
+            if (!nob_copy_file("./build/schmungo", "./schmungo-linux-x86_64/schmungo")) return false;
+            if (!nob_copy_directory_recursively("./resources/", "./schmungo-linux-x86_64/resources/")) return false;
             // TODO: should we pack ffmpeg with Linux build?
             // There are some static executables for Linux
             Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, "tar", "fvc", "./musializer-linux-x86_64.tar.gz", "./musializer-linux-x86_64");
+            nob_cmd_append(&cmd, "tar", "fvc", "./schmungo-linux-x86_64.tar.gz", "./schmungo-linux-x86_64");
             bool ok = nob_cmd_run_sync(cmd);
             nob_cmd_free(cmd);
             if (!ok) return false;
         } break;
 
         case TARGET_WIN64_MINGW: {
-            if (!nob_mkdir_if_not_exists("./musializer-win64-mingw/")) return false;
-            if (!nob_copy_file("./build/musializer.exe", "./musializer-win64-mingw/musializer.exe")) return false;
-            if (!nob_copy_directory_recursively("./resources/", "./musializer-win64-mingw/resources/")) return false;
-            if (!nob_copy_file("musializer-logged.bat", "./musializer-win64-mingw/musializer-logged.bat")) return false;
+            if (!nob_mkdir_if_not_exists("./schmungo-win64-mingw/")) return false;
+            if (!nob_copy_file("./build/schmungo.exe", "./schmungo-win64-mingw/schmungo.exe")) return false;
+            if (!nob_copy_directory_recursively("./resources/", "./schmungo-win64-mingw/resources/")) return false;
+            if (!nob_copy_file("schmungo-logged.bat", "./schmungo-win64-mingw/schmungo-logged.bat")) return false;
             // TODO: pack ffmpeg.exe with windows build
-            //if (!nob_copy_file("ffmpeg.exe", "./musializer-win64-mingw/ffmpeg.exe")) return false;
+            //if (!nob_copy_file("ffmpeg.exe", "./schmungo-win64-mingw/ffmpeg.exe")) return false;
             Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, "zip", "-r", "./musializer-win64-mingw.zip", "./musializer-win64-mingw/");
+            nob_cmd_append(&cmd, "zip", "-r", "./schmungo-win64-mingw.zip", "./schmungo-win64-mingw/");
             bool ok = nob_cmd_run_sync(cmd);
             nob_cmd_free(cmd);
             if (!ok) return false;
@@ -605,9 +592,9 @@ int main(int argc, char **argv)
         log_config(config);
         nob_log(NOB_INFO, "------------------------------");
         if (!build_raylib(config)) return 1;
-        if (!build_musializer(config)) return 1;
+        if (!build_schmungo(config)) return 1;
         if (config.target == TARGET_WIN64_MINGW || config.target == TARGET_WIN64_MSVC) {
-            if (!nob_copy_file("musializer-logged.bat", "build/musializer-logged.bat")) return 1;
+            if (!nob_copy_file("schmungo-logged.bat", "build/schmungo-logged.bat")) return 1;
         }
         if (!nob_copy_directory_recursively("./resources/", "./build/resources/")) return 1;
     } else if (strcmp(subcommand, "config") == 0) {

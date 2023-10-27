@@ -23,9 +23,6 @@
 #include <raylib.h>
 #include <rlgl.h>
 
-#include "guppy.h"
-#define GUPPY_DEBUG_MEMORY
-
 #define GLSL_VERSION 330
 
 #define N (1<<13)
@@ -230,6 +227,7 @@ void sch_draw(const Schmungo_State *state)
 void sch_cleanup(Schmungo_State *state) {
     free(state->units);
     free(state);
+    // _gup_memory_print();
 }
 
 Schmungo_State *persistent_state = NULL;
