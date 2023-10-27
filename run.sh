@@ -1,1 +1,1 @@
-./nob && ./build/musializer
+./nob && ./build/schmungo

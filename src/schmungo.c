@@ -51,15 +51,13 @@
 #define HUD_ICON_SCALE 0.5
 
 typedef struct {
-    Font font;
-} Plug;
-
-typedef struct {
     Color color;
     Vector2 pos;
 } Unit_State;
 
 typedef struct {
+    Font font;
+
     int unit_count;
     Unit_State *units;
 } Schmungo_State;
@@ -84,18 +82,18 @@ static float sch_top(float height) {
     return height;
 }
 
-static void sch_DrawMainMenu(Plug *p)
+static void sch_DrawMainMenu(Schmungo_State *state)
 {
     int w = GetRenderWidth();
 
     const char *label = "Schmungo";
     Color color = WHITE;
-    Vector2 size = MeasureTextEx(p->font, label, p->font.baseSize, 0);
+    Vector2 size = MeasureTextEx(state->font, label, state->font.baseSize, 0);
     Vector2 pos = {
         w/2 - size.x/2,
         sch_top(size.y)
     };
-    DrawTextEx(p->font, label, pos, p->font.baseSize, 0, color);
+    DrawTextEx(state->font, label, pos, state->font.baseSize, 0, color);
 }
 
 static void sch_DrawUnitGround(Vector2 pos, Vector2 size)
@@ -142,24 +140,15 @@ static void sch_DrawUnit(Unit_State *state)
     DrawRectangleV(adjusted_pos, size, state->color);
 }
 
-Schmungo_State *sch_init(Schmungo_State *state, Plug *p)
+Schmungo_State *sch_init(Schmungo_State *state)
 {
-    // TODO: call this something other than plug.
-    { // Initialize plug state
-        p = malloc(sizeof(*p));
-        assert(p != NULL && "Buy more RAM lol");
-        memset(p, 0, sizeof(*p));
+    state = malloc(sizeof(*state));
+    assert(state != NULL && "Buy more RAM lol");
+    memset(state, 0, sizeof(*state));
 
-        p->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
-    }
+    state->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
     
-    { // Initialize schmungo state
-        // Allocate space for the containing struct
-        state = malloc(sizeof(*state));
-        assert(state != NULL && "Buy more RAM lol");
-        memset(state, 0, sizeof(*state));
-        
-        // Allocate space for units
+    { // Allocate space for units 
         state->unit_count = 10;
         state->units = malloc(state->unit_count * sizeof(*state->units));
         for (int i = 0; i < state->unit_count; i++) {
@@ -176,22 +165,24 @@ Schmungo_State *sch_init(Schmungo_State *state, Plug *p)
     return state;
 }
 
-Schmungo_State *sch_update(Schmungo_State *old_state)
+Schmungo_State *sch_update(const Schmungo_State *old_state)
 {
     Schmungo_State *new_state = malloc(sizeof(*new_state));
     assert(new_state != NULL && "Buy more RAM lol");
     memset(new_state, 0, sizeof(*new_state));
 
+    // Copy the old units
+    new_state->unit_count = old_state->unit_count;
+    new_state->units = malloc(new_state->unit_count * sizeof(*new_state->units));
+    for (int i = 0; i < old_state->unit_count; i++) {
+        new_state->units[i] = old_state->units[i];
+    }
+
     // Add a unit
     if (IsKeyPressed(KEY_SPACE)) {
-        new_state->unit_count = old_state->unit_count + 1;
-        new_state->units = malloc(new_state->unit_count * sizeof(*new_state->units));
+        new_state->unit_count++;
+        new_state->units = realloc(new_state->units, new_state->unit_count * sizeof(*new_state->units));
         assert(new_state->units != NULL && "Buy more RAM lol");
-        
-        // Copy the old units
-        for (int i = 0; i < old_state->unit_count; i++) {
-            new_state->units[i] = old_state->units[i];
-        }
 
         new_state->units[new_state->unit_count - 1].color = RED;
         new_state->units[new_state->unit_count - 1].pos = (Vector2) { 
@@ -203,12 +194,12 @@ Schmungo_State *sch_update(Schmungo_State *old_state)
     return new_state;
 }
 
-void sch_draw(Schmungo_State *state, Plug *p)
+void sch_draw(const Schmungo_State *state)
 {
     BeginDrawing();
     ClearBackground(COLOR_BACKGROUND);
 
-    sch_DrawMainMenu(p);
+    sch_DrawMainMenu(state);
 
     // Draw all units
     for (int i = 0; i < state->unit_count; i++) {
@@ -218,53 +209,47 @@ void sch_draw(Schmungo_State *state, Plug *p)
     EndDrawing();
 }
 
-void sch_cleanup(Schmungo_State *state, Plug *p) {
+void sch_cleanup(Schmungo_State *state) {
     free(state->units);
     free(state);
-    free(p);
 }
 
-Plug *p = NULL;
-Schmungo_State *state = NULL;
+Schmungo_State *persistent_state = NULL;
 
 int main(void)
 {
-#ifndef _WIN32
-    // NOTE: This is needed because if the pipe between Musializer and FFmpeg breaks
-    // Musializer will receive SIGPIPE on trying to write into it. While such behavior
-    // makes sense for command line utilities, Musializer is a relatively friendly GUI
-    // application that is trying to recover from such situations.
-    struct sigaction act = {0};
-    act.sa_handler = SIG_IGN;
-    sigaction(SIGPIPE, &act, NULL);
-#endif // _WIN32
-
     Image logo = LoadImage("./resources/logo/logo-256.png");
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     size_t factor = 80;
-    InitWindow(factor*16, factor*9, "Musializer");
+    InitWindow(factor*16, factor*9, "Schmungo");
     SetWindowIcon(logo);
     SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
 
-    state = sch_init(state, p);
+    persistent_state = sch_init(persistent_state);
 
     while (!WindowShouldClose()) {
         // Reset the state
         if (IsKeyPressed(KEY_R)) {
-            state = sch_init(state, p);
+            persistent_state = sch_init(persistent_state);
         }
 
         DrawFPS(10, 10);
         // Update the game state
-        Schmungo_State *new_state = sch_update(state);
+        Schmungo_State *new_state = sch_update(persistent_state);
 
         // Draw the game state
-        sch_draw(new_state, p);
+        sch_draw(new_state);
+
+        // Cleanup the old state
+        sch_cleanup(persistent_state);
+
+        // Update the persistent state to the new state
+        persistent_state = new_state;
     }
 
-    sch_cleanup(state, p);
+    sch_cleanup(persistent_state);
 
     CloseAudioDevice();
     CloseWindow();
