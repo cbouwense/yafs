@@ -208,10 +208,8 @@ bool build_musializer(Config config)
                         if (config.microphone) nob_cmd_append(&cmd, "-DFEATURE_MICROPHONE");
                         nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
                         nob_cmd_append(&cmd, "-fPIC", "-shared");
-                        nob_cmd_append(&cmd, "-o", "./build/libplug.so");
-                        nob_cmd_append(&cmd,
-                            "./src/plug.c",
-                            "./src/ffmpeg_linux.c");
+                        // nob_cmd_append(&cmd, "-o", "./build/libplug.so");
+                        // nob_cmd_append(&cmd, "./src/plug.c", "./src/ffmpeg_linux.c");
                         nob_cmd_append(&cmd,
                             nob_temp_sprintf("-L./build/raylib/%s", NOB_ARRAY_GET(target_names, config.target)),
                             "-l:libraylib.so");
@@ -226,7 +224,7 @@ bool build_musializer(Config config)
                         nob_cmd_append(&cmd, "-DHOTRELOAD");
                         nob_cmd_append(&cmd, "-o", "./build/musializer");
                         nob_cmd_append(&cmd,
-                            "./src/musializer.c",
+                            "./src/schmungo.c",
                             "./src/hotreload_linux.c");
                         nob_cmd_append(&cmd,
                             "-Wl,-rpath=./build/",
@@ -246,11 +244,11 @@ bool build_musializer(Config config)
                     nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
                     if (config.microphone) nob_cmd_append(&cmd, "-DFEATURE_MICROPHONE");
                     nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
-                    nob_cmd_append(&cmd, "-o", "./build/musializer");
+                    nob_cmd_append(&cmd, "-o", "./build/schmungo");
                     nob_cmd_append(&cmd,
-                        "./src/plug.c",
-                        "./src/ffmpeg_linux.c",
-                        "./src/musializer.c");
+                        // "./src/plug.c",
+                        // "./src/ffmpeg_linux.c",
+                        "./src/schmungo.c");
                     nob_cmd_append(&cmd,
                         nob_temp_sprintf("-L./build/raylib/%s", NOB_ARRAY_GET(target_names, config.target)),
                         "-l:libraylib.a");
@@ -272,9 +270,9 @@ bool build_musializer(Config config)
                 nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
                 nob_cmd_append(&cmd, "-o", "./build/musializer");
                 nob_cmd_append(&cmd,
-                    "./src/plug.c",
-                    "./src/ffmpeg_linux.c",
-                    "./src/musializer.c");
+                    // "./src/plug.c",
+                    // "./src/ffmpeg_linux.c",
+                    "./src/schmungo.c");
                 nob_cmd_append(&cmd,
                     nob_temp_sprintf("./build/raylib/%s/libraylib.a", NOB_ARRAY_GET(target_names, config.target)));
 
@@ -307,9 +305,9 @@ bool build_musializer(Config config)
                     nob_cmd_append(&cmd, "-I./raylib/raylib-4.5.0/src/");
                     nob_cmd_append(&cmd, "-o", "./build/musializer");
                     nob_cmd_append(&cmd,
-                        "./src/plug.c",
-                        "./src/ffmpeg_windows.c",
-                        "./src/musializer.c",
+                        // "./src/plug.c",
+                        // "./src/ffmpeg_windows.c",
+                        "./src/schmungo.c",
                         "./build/musializer.res"
                         );
                     nob_cmd_append(&cmd,
@@ -332,9 +330,9 @@ bool build_musializer(Config config)
                     nob_cmd_append(&cmd, "/I", "./raylib/raylib-4.5.0/src/");
                     nob_cmd_append(&cmd, "/Fobuild\\", "/Febuild\\musializer.exe");
                     nob_cmd_append(&cmd,
-                        "./src/musializer.c",
-                        "./src/plug.c",
-                        "./src/ffmpeg_windows.c"
+                        "./src/schmungo.c",
+                        // "./src/plug.c",
+                        // "./src/ffmpeg_windows.c"
                         // TODO: building resource file is not implemented for TARGET_WIN64_MSVC
                         //"./build/musializer.res"
                         );

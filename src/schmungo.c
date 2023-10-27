@@ -1,12 +1,22 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <stdint.h>
 #include <string.h>
 #include <complex.h>
+#include <math.h>
 
-#include "plug.h"
-#include "ffmpeg.h"
+#include <raylib.h>
+
+#ifndef _WIN32
+#include <signal.h> // needed for sigaction()
+#endif // _WIN32
+
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
@@ -14,7 +24,6 @@
 #include <rlgl.h>
 
 #define _WINDOWS_
-#include "miniaudio.h"
 
 #define GLSL_VERSION 330
 
@@ -55,15 +64,6 @@ typedef struct {
     Unit_State *units;
 } Schmungo_State;
 
-static Plug *p = NULL;
-static Schmungo_State *state = NULL;
-
-typedef enum {
-    BS_NONE      = 0, // 00
-    BS_HOVEROVER = 1, // 01
-    BS_CLICKED   = 2, // 10
-} Button_State;
-
 static float sch_vh(float vh) {
     return GetRenderHeight() * vh * 0.01;
 }
@@ -84,7 +84,7 @@ static float sch_top(float height) {
     return height;
 }
 
-static void sch_DrawMainMenu(void)
+static void sch_DrawMainMenu(Plug *p)
 {
     int w = GetRenderWidth();
 
@@ -111,6 +111,7 @@ static void sch_DrawUnitGround(Vector2 pos, Vector2 size)
     );
 }
 
+// TODO: maybe make this a pure function.
 static void sch_UpdateUnit(Unit_State *state)
 {
     if (IsKeyDown(KEY_A)) {
@@ -141,8 +142,9 @@ static void sch_DrawUnit(Unit_State *state)
     DrawRectangleV(adjusted_pos, size, state->color);
 }
 
-void sch_init(void)
+Schmungo_State *sch_init(Schmungo_State *state, Plug *p)
 {
+    // TODO: call this something other than plug.
     { // Initialize plug state
         p = malloc(sizeof(*p));
         assert(p != NULL && "Buy more RAM lol");
@@ -170,38 +172,103 @@ void sch_init(void)
     }
 
     SetMasterVolume(0.5);
+
+    return state;
 }
 
-void sch_update(void)
+Schmungo_State *sch_update(Schmungo_State *old_state)
+{
+    Schmungo_State *new_state = malloc(sizeof(*new_state));
+    assert(new_state != NULL && "Buy more RAM lol");
+    memset(new_state, 0, sizeof(*new_state));
+
+    // Add a unit
+    if (IsKeyPressed(KEY_SPACE)) {
+        new_state->unit_count = old_state->unit_count + 1;
+        new_state->units = malloc(new_state->unit_count * sizeof(*new_state->units));
+        assert(new_state->units != NULL && "Buy more RAM lol");
+        
+        // Copy the old units
+        for (int i = 0; i < old_state->unit_count; i++) {
+            new_state->units[i] = old_state->units[i];
+        }
+
+        new_state->units[new_state->unit_count - 1].color = RED;
+        new_state->units[new_state->unit_count - 1].pos = (Vector2) { 
+            .x = sch_x_center(sch_vw(5)) - (500 - ((new_state->unit_count - 1) * 100)),
+            .y = sch_y_center(sch_vw(5))
+        };
+    }
+
+    return new_state;
+}
+
+void sch_draw(Schmungo_State *state, Plug *p)
 {
     BeginDrawing();
     ClearBackground(COLOR_BACKGROUND);
 
-    sch_DrawMainMenu();
+    sch_DrawMainMenu(p);
+
     // Draw all units
     for (int i = 0; i < state->unit_count; i++) {
         sch_DrawUnit(&state->units[i]);
-    }
-
-    if (IsKeyPressed(KEY_SPACE)) {
-        // Add a unit
-        state->unit_count++;
-        state->units = realloc(state->units, state->unit_count * sizeof(*state->units));
-        assert(state->units != NULL && "Buy more RAM lol");
-        memset(&state->units[state->unit_count - 1], 0, sizeof(*state->units));
-
-        state->units[state->unit_count - 1].color = RED;
-        state->units[state->unit_count - 1].pos = (Vector2) { 
-            .x = sch_x_center(sch_vw(5)) - (500 - ((state->unit_count - 1) * 100)),
-            .y = sch_y_center(sch_vw(5))
-        };
     }
     
     EndDrawing();
 }
 
-void sch_cleanup() {
+void sch_cleanup(Schmungo_State *state, Plug *p) {
     free(state->units);
     free(state);
     free(p);
+}
+
+Plug *p = NULL;
+Schmungo_State *state = NULL;
+
+int main(void)
+{
+#ifndef _WIN32
+    // NOTE: This is needed because if the pipe between Musializer and FFmpeg breaks
+    // Musializer will receive SIGPIPE on trying to write into it. While such behavior
+    // makes sense for command line utilities, Musializer is a relatively friendly GUI
+    // application that is trying to recover from such situations.
+    struct sigaction act = {0};
+    act.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &act, NULL);
+#endif // _WIN32
+
+    Image logo = LoadImage("./resources/logo/logo-256.png");
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    size_t factor = 80;
+    InitWindow(factor*16, factor*9, "Musializer");
+    SetWindowIcon(logo);
+    SetTargetFPS(144);
+    SetExitKey(KEY_ESCAPE);
+    InitAudioDevice();
+
+    state = sch_init(state, p);
+
+    while (!WindowShouldClose()) {
+        // Reset the state
+        if (IsKeyPressed(KEY_R)) {
+            state = sch_init(state, p);
+        }
+
+        DrawFPS(10, 10);
+        // Update the game state
+        Schmungo_State *new_state = sch_update(state);
+
+        // Draw the game state
+        sch_draw(new_state, p);
+    }
+
+    sch_cleanup(state, p);
+
+    CloseAudioDevice();
+    CloseWindow();
+    UnloadImage(logo);
+
+    return 0;
 }
