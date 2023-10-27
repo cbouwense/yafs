@@ -23,7 +23,8 @@
 #include <raylib.h>
 #include <rlgl.h>
 
-#define _WINDOWS_
+#include "guppy.h"
+#define GUPPY_DEBUG_MEMORY
 
 #define GLSL_VERSION 330
 
@@ -62,27 +63,35 @@ typedef struct {
     Unit_State *units;
 } Schmungo_State;
 
-static float sch_vh(float vh) {
+//--------------------------------------------------------------------------------------------------
+// CSS-like helpers
+//--------------------------------------------------------------------------------------------------
+
+float sch_vh(float vh) {
     return GetRenderHeight() * vh * 0.01;
 }
 
-static float sch_vw(float vw) {
+float sch_vw(float vw) {
     return GetRenderWidth() * vw * 0.01;
 }
 
-static float sch_x_center(float width) {
+float sch_x_center(float width) {
     return GetRenderWidth() / 2 - width / 2;
 }
 
-static float sch_y_center(float height) {
+float sch_y_center(float height) {
     return GetRenderHeight() / 2 - height / 2;
 }
 
-static float sch_top(float height) {
+float sch_top(float height) {
     return height;
 }
 
-static void sch_DrawMainMenu(Schmungo_State *state)
+//--------------------------------------------------------------------------------------------------
+// Components
+//--------------------------------------------------------------------------------------------------
+
+void sch_DrawMainMenu(Schmungo_State *state)
 {
     int w = GetRenderWidth();
 
@@ -96,7 +105,7 @@ static void sch_DrawMainMenu(Schmungo_State *state)
     DrawTextEx(state->font, label, pos, state->font.baseSize, 0, color);
 }
 
-static void sch_DrawUnitGround(Vector2 pos, Vector2 size)
+void sch_DrawUnitGround(Vector2 pos, Vector2 size)
 {
     Color color = GREEN;
 
@@ -109,28 +118,32 @@ static void sch_DrawUnitGround(Vector2 pos, Vector2 size)
     );
 }
 
-// TODO: maybe make this a pure function.
-static void sch_UpdateUnit(Unit_State *state)
+Unit_State *sch_UpdateUnit(Unit_State *old_state)
 {
+    Unit_State *new_state = malloc(sizeof(*new_state));
+
+    new_state->color = old_state->color;
+    new_state->pos = old_state->pos;
+
     if (IsKeyDown(KEY_A)) {
-        state->pos.x -= 1;
+        new_state->pos.x -= 1;
     }
     if (IsKeyDown(KEY_D)) {
-        state->pos.x += 1;
+        new_state->pos.x += 1;
     }
     if (IsKeyDown(KEY_W)) {
-        state->pos.y -= 1;
+        new_state->pos.y -= 1;
     }
     if (IsKeyDown(KEY_S)) {
-        state->pos.y += 1;
+        new_state->pos.y += 1;
     }
+
+    return new_state;
 }
 
-static void sch_DrawUnit(Unit_State *state)
+void sch_DrawUnit(Unit_State *state)
 {
     Vector2 size = { sch_vw(5), sch_vw(5) };
-
-    sch_UpdateUnit(state);
     Vector2 adjusted_pos = {
         state->pos.x - size.x/2,
         state->pos.y - size.y,
@@ -139,6 +152,10 @@ static void sch_DrawUnit(Unit_State *state)
     sch_DrawUnitGround(adjusted_pos, size);
     DrawRectangleV(adjusted_pos, size, state->color);
 }
+
+//--------------------------------------------------------------------------------------------------
+// Core
+//--------------------------------------------------------------------------------------------------
 
 Schmungo_State *sch_init(Schmungo_State *state)
 {
@@ -171,11 +188,12 @@ Schmungo_State *sch_update(const Schmungo_State *old_state)
     assert(new_state != NULL && "Buy more RAM lol");
     memset(new_state, 0, sizeof(*new_state));
 
-    // Copy the old units
+    // Copy and update units
     new_state->unit_count = old_state->unit_count;
     new_state->units = malloc(new_state->unit_count * sizeof(*new_state->units));
     for (int i = 0; i < old_state->unit_count; i++) {
-        new_state->units[i] = old_state->units[i];
+        new_state->units[i] = *sch_UpdateUnit(&old_state->units[i]);
+        // free(&old_state->units[i]);
     }
 
     // Add a unit
