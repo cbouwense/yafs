@@ -105,7 +105,7 @@ static void sch_DrawMainMenu(void)
     DrawTextEx(p->font, label, pos, p->font.baseSize, 0, color);
 }
 
-static void sch_DrawSoldierGround(Vector2 pos, Vector2 size)
+static void sch_DrawUnitGround(Vector2 pos, Vector2 size)
 {
     Color color = GREEN;
 
@@ -121,12 +121,12 @@ static void sch_DrawSoldierGround(Vector2 pos, Vector2 size)
 typedef struct {
     Color color;
     Vector2 pos;
-} Soldier_State;
+} Unit_State;
 
-static int soldier_count = 10;
-static Soldier_State *soldiers = NULL;
+static int unit_count = 10;
+static Unit_State *units = NULL;
 
-static void sch_UpdateSoldier(Soldier_State *state)
+static void sch_UpdateUnit(Unit_State *state)
 {
     if (IsKeyDown(KEY_A)) {
         state->pos.x -= 1;
@@ -142,17 +142,17 @@ static void sch_UpdateSoldier(Soldier_State *state)
     }
 }
 
-static void sch_DrawSoldier(Soldier_State *state)
+static void sch_DrawUnit(Unit_State *state)
 {
     Vector2 size = { sch_vw(5), sch_vw(5) };
 
-    sch_UpdateSoldier(state);
+    sch_UpdateUnit(state);
     Vector2 adjusted_pos = {
         state->pos.x - size.x/2,
         state->pos.y - size.y,
     };
 
-    sch_DrawSoldierGround(adjusted_pos, size);
+    sch_DrawUnitGround(adjusted_pos, size);
     DrawRectangleV(adjusted_pos, size, state->color);
 }
 
@@ -166,14 +166,14 @@ void sch_init(void)
         p->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
     }
 
-    { // Initialize soldiers state
-        soldiers = malloc(soldier_count * sizeof(*soldiers));
-        assert(soldiers != NULL && "Buy more RAM lol");
-        memset(soldiers, 0, soldier_count * sizeof(*soldiers));
+    { // Initialize units state
+        units = malloc(unit_count * sizeof(*units));
+        assert(units != NULL && "Buy more RAM lol");
+        memset(units, 0, unit_count * sizeof(*units));
 
-        for (int i = 0; i < soldier_count; i++) {
-            soldiers[i].color = RED;
-            soldiers[i].pos = (Vector2) { 
+        for (int i = 0; i < unit_count; i++) {
+            units[i].color = RED;
+            units[i].pos = (Vector2) { 
                 .x = sch_x_center(sch_vw(5)) - (500 - (i * 100)),
                 .y = sch_y_center(sch_vw(5))
             };
@@ -189,21 +189,21 @@ void sch_update(void)
     ClearBackground(COLOR_BACKGROUND);
 
     sch_DrawMainMenu();
-    // Draw all soldiers
-    for (int i = 0; i < soldier_count; i++) {
-        sch_DrawSoldier(&soldiers[i]);
+    // Draw all units
+    for (int i = 0; i < unit_count; i++) {
+        sch_DrawUnit(&units[i]);
     }
 
     if (IsKeyPressed(KEY_SPACE)) {
-        // Add a soldier
-        soldier_count++;
-        soldiers = realloc(soldiers, soldier_count * sizeof(*soldiers));
-        assert(soldiers != NULL && "Buy more RAM lol");
-        memset(&soldiers[soldier_count - 1], 0, sizeof(*soldiers));
+        // Add a unit
+        unit_count++;
+        units = realloc(units, unit_count * sizeof(*units));
+        assert(units != NULL && "Buy more RAM lol");
+        memset(&units[unit_count - 1], 0, sizeof(*units));
 
-        soldiers[soldier_count - 1].color = RED;
-        soldiers[soldier_count - 1].pos = (Vector2) { 
-            .x = sch_x_center(sch_vw(5)) - (500 - ((soldier_count - 1) * 100)),
+        units[unit_count - 1].color = RED;
+        units[unit_count - 1].pos = (Vector2) { 
+            .x = sch_x_center(sch_vw(5)) - (500 - ((unit_count - 1) * 100)),
             .y = sch_y_center(sch_vw(5))
         };
     }
@@ -212,6 +212,6 @@ void sch_update(void)
 }
 
 void sch_cleanup() {
-    free(soldiers);
+    free(units);
     free(p);
 }
