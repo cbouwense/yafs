@@ -53,13 +53,14 @@ typedef struct {
     int id;
     Color color;
     Vector2 pos;
-} Unit;
+} LandPlot;
 
 typedef struct {
     Font font;
+    bool debug_mode;
 
-    int unit_count;
-    Unit *units;
+    int LandPlot_count;
+    LandPlot *landplots;
 } Schmungo;
 
 //--------------------------------------------------------------------------------------------------
@@ -90,21 +91,7 @@ float sch_top(float height) {
 // Components
 //--------------------------------------------------------------------------------------------------
 
-void sch_DrawMainMenu(const Schmungo *state)
-{
-    int w = GetRenderWidth();
-
-    const char *label = "Schmungo";
-    Color color = WHITE;
-    Vector2 size = MeasureTextEx(state->font, label, state->font.baseSize, 0);
-    Vector2 pos = {
-        w/2 - size.x/2,
-        sch_top(size.y)
-    };
-    DrawTextEx(state->font, label, pos, state->font.baseSize, 0, color);
-}
-
-void sch_DrawUnitGround(const Vector2 pos, const Vector2 size)
+void sch_DrawLandPlotGround(const Vector2 pos, const Vector2 size)
 {
     Color color = GREEN;
 
@@ -117,50 +104,59 @@ void sch_DrawUnitGround(const Vector2 pos, const Vector2 size)
     );
 }
 
-void sch_DrawUnit(const Unit *state)
+void sch_DrawLandPlot(const LandPlot *state)
 {
     Vector2 size = { sch_vw(5), sch_vw(5) };
-    Vector2 adjusted_pos = {
-        state->pos.x - size.x/2,
-        state->pos.y - size.y,
-    };
 
-    sch_DrawUnitGround(adjusted_pos, size);
-    DrawRectangleV(adjusted_pos, size, state->color);
+    sch_DrawLandPlotGround(state->pos, size);
+    DrawRectangleV(state->pos, size, state->color);
+}
+
+void sch_DrawLandPlots(const Schmungo *state)
+{
+    for (int i = 0; i < state->LandPlot_count; i++) {
+        sch_DrawLandPlot(&state->landplots[i]);
+    }
 }
 
 void sch_DrawGameState(const Schmungo *state)
 {
-    // Draw state of all units
-    DrawText(TextFormat("Unit count: %d", state->unit_count), 10, 30, 20, WHITE);
-    for (int i = 0; i < state->unit_count; i++) {
-        DrawText(TextFormat("Unit %d", state->units[i].id), 10, 50 + (i * 20), 20, WHITE);
+    if (!state->debug_mode) return;
+
+    // Draw state of all landplots
+    DrawText(TextFormat("LandPlot count: %d", state->LandPlot_count), 10, 30, 20, WHITE);
+    for (int i = 0; i < state->LandPlot_count; i++) {
+        DrawText(TextFormat("LandPlot id: %d", state->landplots[i].id), 10, 50 + (i * 20), 20, WHITE);
     }
+}
+
+void sch_DrawNextTurnButton(const Schmungo *state)
+{
+    Vector2 pos = { sch_x_center(sch_vw(5)), sch_y_center(sch_vw(5)) };
+    Vector2 size = { sch_vw(5), sch_vw(5) };
+
+    DrawRectangleV(pos, size, RED);
 }
 
 //--------------------------------------------------------------------------------------------------
 // Update Components
 //--------------------------------------------------------------------------------------------------
 
-Unit *sch_UpdateUnit(Unit *old_state)
+const LandPlot *sch_UpdateLandPlot(const LandPlot *old_state)
 {
-    Unit *new_state = malloc(sizeof(*new_state));
+    LandPlot *new_state = malloc(sizeof(*new_state));
 
+    // TODO: Lock?
     new_state->id = old_state->id;
     new_state->color = old_state->color;
     new_state->pos = old_state->pos;
 
-    if (IsKeyDown(KEY_A)) {
-        new_state->pos.x -= 1;
-    }
-    if (IsKeyDown(KEY_D)) {
-        new_state->pos.x += 1;
-    }
-    if (IsKeyDown(KEY_W)) {
-        new_state->pos.y -= 1;
-    }
-    if (IsKeyDown(KEY_S)) {
-        new_state->pos.y += 1;
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mouse_pos = GetMousePosition();
+        Rectangle landplot_area = { new_state->pos.x, new_state->pos.y, sch_vw(5), sch_vw(5) };
+        if (CheckCollisionPointRec(mouse_pos, landplot_area)) {
+            new_state->color = GREEN;
+        }
     }
 
     return new_state;
@@ -170,21 +166,22 @@ Unit *sch_UpdateUnit(Unit *old_state)
 // Core
 //--------------------------------------------------------------------------------------------------
 
-Schmungo *sch_init(Schmungo *state)
+const Schmungo *sch_init(Schmungo *state)
 {
     state = malloc(sizeof(*state));
     assert(state != NULL && "Buy more RAM lol");
     memset(state, 0, sizeof(*state));
 
     state->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
-    
-    { // Allocate space for units 
-        state->unit_count = 10;
-        state->units = malloc(state->unit_count * sizeof(*state->units));
-        for (int i = 0; i < state->unit_count; i++) {
-            state->units[i].id = i;
-            state->units[i].color = RED;
-            state->units[i].pos = (Vector2) { 
+    state->debug_mode = false;
+
+    { // Allocate space for landplots 
+        state->LandPlot_count = 10;
+        state->landplots = malloc(state->LandPlot_count * sizeof(*state->landplots));
+        for (int i = 0; i < state->LandPlot_count; i++) {
+            state->landplots[i].id = i;
+            state->landplots[i].color = RED;
+            state->landplots[i].pos = (Vector2) { 
                 .x = sch_x_center(sch_vw(5)) - (500 - (i * 100)),
                 .y = sch_y_center(sch_vw(5))
             };
@@ -196,38 +193,43 @@ Schmungo *sch_init(Schmungo *state)
     return state;
 }
 
-Schmungo *sch_update(const Schmungo *old_state)
+const Schmungo *sch_update(const Schmungo *old_state)
 {
     Schmungo *new_state = malloc(sizeof(*new_state));
     assert(new_state != NULL && "Buy more RAM lol");
     memset(new_state, 0, sizeof(*new_state));
 
     // TODO: Do I need a lock here?
-    // Copy and update units
-    new_state->unit_count = old_state->unit_count;
-    new_state->units = malloc(new_state->unit_count * sizeof(*new_state->units));
-    for (int i = 0; i < new_state->unit_count; i++) {
-        new_state->units[i] = *sch_UpdateUnit(&old_state->units[i]);
+    // Copy and update landplots
+    new_state->LandPlot_count = old_state->LandPlot_count;
+    new_state->landplots = malloc(new_state->LandPlot_count * sizeof(*new_state->landplots));
+    for (int i = 0; i < new_state->LandPlot_count; i++) {
+        new_state->landplots[i] = *sch_UpdateLandPlot(&old_state->landplots[i]);
         // TODO: Freeing the old state causes a segfault but I don't know why.
-        // free(&old_state->units[i]);
+        // free(&old_state->landplots[i]);
     }
 
-    // Add a unit on spacebar press
     if (IsKeyPressed(KEY_SPACE)) {
-        // Allocate space for the new unit
-        new_state->unit_count++;
-        new_state->units = realloc(new_state->units, new_state->unit_count * sizeof(*new_state->units));
-        assert(new_state->units != NULL && "Buy more RAM lol");
+        // Allocate space for the new LandPlot
+        new_state->LandPlot_count++;
+        new_state->landplots = realloc(new_state->landplots, new_state->LandPlot_count * sizeof(*new_state->landplots));
+        assert(new_state->landplots != NULL && "Buy more RAM lol");
 
-        // Initialize the new unit
-        Unit new_unit;
-        new_unit.id = new_state->unit_count - 1;
-        new_unit.color = RED;
-        new_unit.pos = (Vector2) { 
-            .x = sch_x_center(sch_vw(5)) - (500 - ((new_state->unit_count - 1) * 100)),
+        // Initialize the new LandPlot
+        LandPlot new_LandPlot;
+        new_LandPlot.id = new_state->LandPlot_count - 1;
+        new_LandPlot.color = RED;
+        new_LandPlot.pos = (Vector2) { 
+            .x = sch_x_center(sch_vw(5)) - (500 - ((new_state->LandPlot_count - 1) * 100)),
             .y = sch_y_center(sch_vw(5))
         };
-        new_state->units[new_state->unit_count - 1] = new_unit;
+        new_state->landplots[new_state->LandPlot_count - 1] = new_LandPlot;
+    }
+
+    if (IsKeyPressed(KEY_F1)) {
+        new_state->debug_mode = !old_state->debug_mode;
+    } else {
+        new_state->debug_mode = old_state->debug_mode;
     }
 
     return new_state;
@@ -240,20 +242,17 @@ void sch_draw(const Schmungo *state)
 
     DrawFPS(10, 10);
 
-    sch_DrawMainMenu(state);
-
     sch_DrawGameState(state);
 
-    // Draw all units
-    for (int i = 0; i < state->unit_count; i++) {
-        sch_DrawUnit(&state->units[i]);
-    }
+    sch_DrawLandPlots(state);
+
+    sch_DrawNextTurnButton(state);
     
     EndDrawing();
 }
 
 void sch_cleanup(Schmungo *state) {
-    free(state->units);
+    free(state->landplots);
     free(state);
     // _gup_memory_print();
 }
