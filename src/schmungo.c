@@ -126,7 +126,15 @@ void sch_DrawGameState(const Schmungo *state)
     // Draw state of all landplots
     DrawText(TextFormat("LandPlot count: %d", state->LandPlot_count), 10, 30, 20, WHITE);
     for (int i = 0; i < state->LandPlot_count; i++) {
-        DrawText(TextFormat("LandPlot id: %d", state->landplots[i].id), 10, 50 + (i * 20), 20, WHITE);
+        const LandPlot landplot = state->landplots[i];
+
+        DrawText(
+            TextFormat("LandPlot %d: (%.1f, %.1f)", landplot.id, landplot.pos.x, landplot.pos.x),
+            10,
+            50 + (i * 20),
+            20,
+            WHITE
+        );
     }
 }
 
@@ -173,18 +181,58 @@ const Schmungo *sch_init(Schmungo *state)
     memset(state, 0, sizeof(*state));
 
     state->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
-    state->debug_mode = false;
+    state->debug_mode = true;
 
     { // Allocate space for landplots 
-        state->LandPlot_count = 10;
+        state->LandPlot_count = 9;
         state->landplots = malloc(state->LandPlot_count * sizeof(*state->landplots));
         for (int i = 0; i < state->LandPlot_count; i++) {
             state->landplots[i].id = i;
             state->landplots[i].color = RED;
-            state->landplots[i].pos = (Vector2) { 
-                .x = sch_x_center(sch_vw(5)) - (500 - (i * 100)),
-                .y = sch_y_center(sch_vw(5))
-            };
+
+            float x;
+            switch (i) {
+                case 0:
+                case 3:
+                case 6:
+                    x = sch_x_center(sch_vw(5) - 250);
+                    break;
+
+                case 1:
+                case 4:
+                case 7:
+                    x = sch_x_center(sch_vw(5));
+                    break;
+
+                case 2:
+                case 5:
+                case 8:
+                    x = sch_x_center(sch_vw(5) + 250);
+                    break;
+            }
+            
+            float y;
+            switch (i) {
+                case 0:
+                case 1:
+                case 2:
+                    y = sch_y_center(sch_vw(5) - 250);
+                    break;
+
+                case 3:
+                case 4:
+                case 5:
+                    y = sch_y_center(sch_vw(5));
+                    break;
+
+                case 6:
+                case 7:
+                case 8:
+                    y = sch_y_center(sch_vw(5) + 250);
+                    break;
+            }  
+            
+            state->landplots[i].pos = (Vector2) { x, y};
         }
     }
 
