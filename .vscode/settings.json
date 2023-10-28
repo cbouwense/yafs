@@ -3,6 +3,7 @@
         "signal.h": "c",
         "guppy.h": "c",
         "stdlib.h": "c",
-        "raylib.h": "c"
+        "raylib.h": "c",
+        "*.m": "c"
     },
 }
