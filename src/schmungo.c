@@ -83,8 +83,20 @@ float sch_y_center(float height) {
     return GetRenderHeight() / 2 - height / 2;
 }
 
-float sch_top(float height) {
-    return height;
+float sch_top() {
+    return 0;
+}
+
+float sch_right() {
+    return GetRenderWidth();
+}
+
+float sch_bottom() {
+    return GetRenderHeight();
+}
+
+float sch_left() {
+    return 0;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -133,17 +145,19 @@ void sch_DrawGameState(const Schmungo *state)
             10,
             50 + (i * 20),
             20,
-            WHITE
+            landplot.color
         );
     }
 }
 
 void sch_DrawNextTurnButton(const Schmungo *state)
 {
-    Vector2 pos = { sch_x_center(sch_vw(5)), sch_y_center(sch_vw(5)) };
-    Vector2 size = { sch_vw(5), sch_vw(5) };
+    Vector2 margin = { sch_vw(2), sch_vw(2) };
+    Vector2 size = { sch_vw(15), sch_vw(5) };
+    Vector2 pos = { sch_right() - size.x - margin.x, sch_bottom() - size.y - margin.y};
 
-    DrawRectangleV(pos, size, RED);
+    DrawRectangleV(pos, size, ORANGE);
+    DrawText("Next Turn", pos.x + 10, pos.y + 10, 30, WHITE);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -232,7 +246,7 @@ const Schmungo *sch_init(Schmungo *state)
                     break;
             }  
             
-            state->landplots[i].pos = (Vector2) { x, y};
+            state->landplots[i].pos = (Vector2) { x, y };
         }
     }
 
