@@ -43,22 +43,24 @@
 #define COLOR_TIMELINE_BACKGROUND     ColorBrightness(COLOR_BACKGROUND, -0.3)
 #define COLOR_HUD_BUTTON_BACKGROUND   COLOR_TRACK_BUTTON_BACKGROUND
 #define COLOR_HUD_BUTTON_HOVEROVER    COLOR_TRACK_BUTTON_HOVEROVER
-#define HUD_TIMER_SECS 1.0f
-#define HUD_BUTTON_SIZE 50
+
+#define HUD_TIMER_SECS    1.0f
+#define HUD_BUTTON_SIZE   50
 #define HUD_BUTTON_MARGIN 50
-#define HUD_ICON_SCALE 0.5
+#define HUD_ICON_SCALE    0.5
 
 typedef struct {
+    int id;
     Color color;
     Vector2 pos;
-} Unit_State;
+} Unit;
 
 typedef struct {
     Font font;
 
     int unit_count;
-    Unit_State *units;
-} Schmungo_State;
+    Unit *units;
+} Schmungo;
 
 //--------------------------------------------------------------------------------------------------
 // CSS-like helpers
@@ -88,7 +90,7 @@ float sch_top(float height) {
 // Components
 //--------------------------------------------------------------------------------------------------
 
-void sch_DrawMainMenu(Schmungo_State *state)
+void sch_DrawMainMenu(const Schmungo *state)
 {
     int w = GetRenderWidth();
 
@@ -102,7 +104,7 @@ void sch_DrawMainMenu(Schmungo_State *state)
     DrawTextEx(state->font, label, pos, state->font.baseSize, 0, color);
 }
 
-void sch_DrawUnitGround(Vector2 pos, Vector2 size)
+void sch_DrawUnitGround(const Vector2 pos, const Vector2 size)
 {
     Color color = GREEN;
 
@@ -115,10 +117,36 @@ void sch_DrawUnitGround(Vector2 pos, Vector2 size)
     );
 }
 
-Unit_State *sch_UpdateUnit(Unit_State *old_state)
+void sch_DrawUnit(const Unit *state)
 {
-    Unit_State *new_state = malloc(sizeof(*new_state));
+    Vector2 size = { sch_vw(5), sch_vw(5) };
+    Vector2 adjusted_pos = {
+        state->pos.x - size.x/2,
+        state->pos.y - size.y,
+    };
 
+    sch_DrawUnitGround(adjusted_pos, size);
+    DrawRectangleV(adjusted_pos, size, state->color);
+}
+
+void sch_DrawGameState(const Schmungo *state)
+{
+    // Draw state of all units
+    DrawText(TextFormat("Unit count: %d", state->unit_count), 10, 30, 20, WHITE);
+    for (int i = 0; i < state->unit_count; i++) {
+        DrawText(TextFormat("Unit %d", state->units[i].id), 10, 50 + (i * 20), 20, WHITE);
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Update Components
+//--------------------------------------------------------------------------------------------------
+
+Unit *sch_UpdateUnit(Unit *old_state)
+{
+    Unit *new_state = malloc(sizeof(*new_state));
+
+    new_state->id = old_state->id;
     new_state->color = old_state->color;
     new_state->pos = old_state->pos;
 
@@ -138,23 +166,11 @@ Unit_State *sch_UpdateUnit(Unit_State *old_state)
     return new_state;
 }
 
-void sch_DrawUnit(Unit_State *state)
-{
-    Vector2 size = { sch_vw(5), sch_vw(5) };
-    Vector2 adjusted_pos = {
-        state->pos.x - size.x/2,
-        state->pos.y - size.y,
-    };
-
-    sch_DrawUnitGround(adjusted_pos, size);
-    DrawRectangleV(adjusted_pos, size, state->color);
-}
-
 //--------------------------------------------------------------------------------------------------
 // Core
 //--------------------------------------------------------------------------------------------------
 
-Schmungo_State *sch_init(Schmungo_State *state)
+Schmungo *sch_init(Schmungo *state)
 {
     state = malloc(sizeof(*state));
     assert(state != NULL && "Buy more RAM lol");
@@ -166,6 +182,7 @@ Schmungo_State *sch_init(Schmungo_State *state)
         state->unit_count = 10;
         state->units = malloc(state->unit_count * sizeof(*state->units));
         for (int i = 0; i < state->unit_count; i++) {
+            state->units[i].id = i;
             state->units[i].color = RED;
             state->units[i].pos = (Vector2) { 
                 .x = sch_x_center(sch_vw(5)) - (500 - (i * 100)),
@@ -179,42 +196,53 @@ Schmungo_State *sch_init(Schmungo_State *state)
     return state;
 }
 
-Schmungo_State *sch_update(const Schmungo_State *old_state)
+Schmungo *sch_update(const Schmungo *old_state)
 {
-    Schmungo_State *new_state = malloc(sizeof(*new_state));
+    Schmungo *new_state = malloc(sizeof(*new_state));
     assert(new_state != NULL && "Buy more RAM lol");
     memset(new_state, 0, sizeof(*new_state));
 
+    // TODO: Do I need a lock here?
     // Copy and update units
     new_state->unit_count = old_state->unit_count;
     new_state->units = malloc(new_state->unit_count * sizeof(*new_state->units));
-    for (int i = 0; i < old_state->unit_count; i++) {
+    for (int i = 0; i < new_state->unit_count; i++) {
         new_state->units[i] = *sch_UpdateUnit(&old_state->units[i]);
+        // TODO: Freeing the old state causes a segfault but I don't know why.
         // free(&old_state->units[i]);
     }
 
-    // Add a unit
+    // Add a unit on spacebar press
     if (IsKeyPressed(KEY_SPACE)) {
+        // Allocate space for the new unit
         new_state->unit_count++;
         new_state->units = realloc(new_state->units, new_state->unit_count * sizeof(*new_state->units));
         assert(new_state->units != NULL && "Buy more RAM lol");
 
-        new_state->units[new_state->unit_count - 1].color = RED;
-        new_state->units[new_state->unit_count - 1].pos = (Vector2) { 
+        // Initialize the new unit
+        Unit new_unit;
+        new_unit.id = new_state->unit_count - 1;
+        new_unit.color = RED;
+        new_unit.pos = (Vector2) { 
             .x = sch_x_center(sch_vw(5)) - (500 - ((new_state->unit_count - 1) * 100)),
             .y = sch_y_center(sch_vw(5))
         };
+        new_state->units[new_state->unit_count - 1] = new_unit;
     }
 
     return new_state;
 }
 
-void sch_draw(const Schmungo_State *state)
+void sch_draw(const Schmungo *state)
 {
     BeginDrawing();
     ClearBackground(COLOR_BACKGROUND);
 
+    DrawFPS(10, 10);
+
     sch_DrawMainMenu(state);
+
+    sch_DrawGameState(state);
 
     // Draw all units
     for (int i = 0; i < state->unit_count; i++) {
@@ -224,13 +252,13 @@ void sch_draw(const Schmungo_State *state)
     EndDrawing();
 }
 
-void sch_cleanup(Schmungo_State *state) {
+void sch_cleanup(Schmungo *state) {
     free(state->units);
     free(state);
     // _gup_memory_print();
 }
 
-Schmungo_State *persistent_state = NULL;
+Schmungo *persistent_state = NULL;
 
 int main(void)
 {
@@ -251,9 +279,8 @@ int main(void)
             persistent_state = sch_init(persistent_state);
         }
 
-        DrawFPS(10, 10);
         // Update the game state
-        Schmungo_State *new_state = sch_update(persistent_state);
+        Schmungo *new_state = sch_update(persistent_state);
 
         // Draw the game state
         sch_draw(new_state);
