@@ -49,10 +49,18 @@
 #define HUD_BUTTON_MARGIN 50
 #define HUD_ICON_SCALE    0.5
 
+enum LandPlotState {
+    LP_FALLOW,
+    LP_PLOWED,
+    LP_SEEDED,
+    LP_GROWING,
+    LP_GROWN,
+};
+
 typedef struct {
     int id;
-    Color color;
     Vector2 pos;
+    enum LandPlotState state;
 } LandPlot;
 
 typedef struct {
@@ -99,56 +107,29 @@ float sch_left() {
     return 0;
 }
 
-// Draw components ---------------------------------------------------------------------------------
+// Component properties ----------------------------------------------------------------------------
 
-void sch_DrawLandPlotGround(const Vector2 pos, const Vector2 size)
+Color sch_landplot_color(const enum LandPlotState state)
 {
-    Color color = GREEN;
+    switch (state) {
+        case LP_FALLOW:
+            return GRAY;
 
-    DrawEllipse(
-        pos.x + size.x/2,
-        pos.y + size.y,
-        size.x,
-        size.x/3,
-        color
-    );
-}
+        case LP_PLOWED:
+            return DARKBROWN;
 
-void sch_DrawLandPlot(const LandPlot *state)
-{
-    Vector2 size = { sch_vw(5), sch_vw(5) };
+        case LP_SEEDED:
+            return LIME;
 
-    sch_DrawLandPlotGround(state->pos, size);
-    DrawRectangleV(state->pos, size, state->color);
-}
+        case LP_GROWING:
+            return GREEN;
 
-void sch_DrawLandPlots(const Schmungo *state)
-{
-    for (int i = 0; i < state->landplot_count; i++) {
-        sch_DrawLandPlot(&state->landplots[i]);
+        case LP_GROWN:
+            return BROWN;
+
+        default:
+            return RED;
     }
-}
-
-void sch_DrawGameState(const Schmungo *state)
-{
-    if (!state->debug_mode) return;
-
-    // Draw state of all landplots
-    DrawText(TextFormat("LandPlot count: %d", state->landplot_count), 10, 30, 20, WHITE);
-    for (int i = 0; i < state->landplot_count; i++) {
-        const LandPlot landplot = state->landplots[i];
-
-        DrawText(
-            TextFormat("LandPlot %d: (%.1f, %.1f)", landplot.id, landplot.pos.x, landplot.pos.x),
-            10,
-            50 + (i * 20),
-            20,
-            landplot.color
-        );
-    }
-
-    // Draw turn
-    DrawText(TextFormat("Turn: %d", state->turn), 10, 100, 20, WHITE);
 }
 
 Vector2 sch_NextTurnSize()
@@ -166,6 +147,37 @@ Vector2 sch_NextTurnButtonPos()
     };
 }
 
+// Draw components ---------------------------------------------------------------------------------
+
+void sch_DrawLandPlotGround(const Vector2 pos, const Vector2 size)
+{
+    Color color = GREEN;
+
+    DrawEllipse(
+        pos.x + size.x/2,
+        pos.y + size.y,
+        size.x,
+        size.x/3,
+        color
+    );
+}
+
+void sch_DrawLandPlot(const LandPlot *lp)
+{
+    Vector2 size = { sch_vw(5), sch_vw(5) };
+    Color c = sch_landplot_color(lp->state);
+    
+    sch_DrawLandPlotGround(lp->pos, size);
+    DrawRectangleV(lp->pos, size, c);
+}
+
+void sch_DrawLandPlots(const Schmungo *state)
+{
+    for (int i = 0; i < state->landplot_count; i++) {
+        sch_DrawLandPlot(&state->landplots[i]);
+    }
+}
+
 void sch_DrawNextTurnButton(const Schmungo *state)
 {
     const Vector2 pos = sch_NextTurnButtonPos();
@@ -176,6 +188,28 @@ void sch_DrawNextTurnButton(const Schmungo *state)
 }
 
 // Draw debug components ---------------------------------------------------------------------------
+
+void sch_DrawGameState(const Schmungo *state)
+{
+    if (!state->debug_mode) return;
+
+    // Draw state of all landplots
+    DrawText(TextFormat("LandPlot count: %d", state->landplot_count), 10, 30, 20, WHITE);
+    for (int i = 0; i < state->landplot_count; i++) {
+        const LandPlot landplot = state->landplots[i];
+
+        DrawText(
+            TextFormat("LandPlot %d: (%.1f, %.1f)", landplot.id, landplot.pos.x, landplot.pos.x),
+            10,
+            50 + (i * 20),
+            20,
+            sch_landplot_color(landplot.state)
+        );
+    }
+
+    // Draw turn
+    DrawText(TextFormat("Turn: %d", state->turn), 10, 100, 20, WHITE);
+}
 
 void sch_DrawDebugNextTurnButton()
 {
@@ -194,22 +228,13 @@ void sch_DrawDebugNextTurnButton()
 
 const LandPlot *sch_UpdateLandPlot(const LandPlot *old_landplot)
 {
-    LandPlot *new_state = malloc(sizeof(*new_state));
+    LandPlot *new_lp = malloc(sizeof(*new_lp));
 
-    // TODO: Lock?
-    new_state->id = old_landplot->id;
-    new_state->pos = old_landplot->pos;
-    new_state->color = old_landplot->color;
+    new_lp->id = old_landplot->id;
+    new_lp->pos = old_landplot->pos;
+    new_lp->state = old_landplot->state;
 
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        Vector2 mouse_pos = GetMousePosition();
-        Rectangle landplot_area = { new_state->pos.x, new_state->pos.y, sch_vw(5), sch_vw(5) };
-        if (CheckCollisionPointRec(mouse_pos, landplot_area)) {
-            new_state->color = GREEN;
-        }
-    }
-
-    return new_state;
+    return new_lp;
 }
 
 const int sch_UpdateNextTurnButton(const int old_turn)
@@ -242,12 +267,12 @@ const Schmungo *sch_init(Schmungo *state)
     state->font = LoadFontEx("./resources/fonts/Alegreya-Regular.ttf", FONT_SIZE, NULL, 0);
     state->debug_mode = true;
 
-    { // Allocate space for landplots 
+    { // Land plots
         state->landplot_count = 9;
         state->landplots = malloc(state->landplot_count * sizeof(*state->landplots));
         for (int i = 0; i < state->landplot_count; i++) {
+            state->landplots[i].state = LP_FALLOW;
             state->landplots[i].id = i;
-            state->landplots[i].color = RED;
 
             float x;
             switch (i) {
@@ -309,8 +334,7 @@ const Schmungo *sch_update(const Schmungo *old_state)
     assert(new_state != NULL && "Buy more RAM lol");
     memset(new_state, 0, sizeof(*new_state));
 
-    // TODO: Do I need a lock here?
-    // Copy and update landplots
+    // Update land plots
     new_state->landplot_count = old_state->landplot_count;
     new_state->landplots = malloc(new_state->landplot_count * sizeof(*new_state->landplots));
     for (int i = 0; i < new_state->landplot_count; i++) {
@@ -322,6 +346,7 @@ const Schmungo *sch_update(const Schmungo *old_state)
     // Update turn
     new_state->turn = sch_UpdateNextTurnButton(old_state->turn);
 
+    // Update debug mode
     if (IsKeyPressed(KEY_F1)) {
         new_state->debug_mode = !old_state->debug_mode;
     } else {
