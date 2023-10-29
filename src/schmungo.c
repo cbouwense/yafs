@@ -273,17 +273,22 @@ Landplot *sch_UpdateLandplot(const int i, Schmungo *state)
     return new_lp;
 }
 
-const int sch_UpdateNextTurnButton(const int old_turn)
+// TODO: this mutates the state. Probably shouldn't do that in a real game, but it's fine for now.
+const int sch_UpdateNextTurnButton(const int old_turn, Schmungo *state)
 {
     int new_turn = old_turn;
     const Vector2 pos = sch_NextTurnButtonPos();
     const Vector2 size = sch_NextTurnSize();
 
+    // TODO: this wold be better as a function.
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Vector2 mouse_pos = GetMousePosition();
         Rectangle button_area = { pos.x, pos.y, size.x, size.y };
 
         if (CheckCollisionPointRec(mouse_pos, button_area)) {
+            // TODO: mutating the actions remaining instead of returning a new state.
+            state->actions_remaining = 2;
+
             new_turn = old_turn + 1;
             printf("Turn: %d\n", new_turn);
         }
@@ -385,7 +390,7 @@ const Schmungo *sch_update(const Schmungo *old_state)
     }
 
     // Update turn
-    new_state->turn = sch_UpdateNextTurnButton(old_state->turn);
+    new_state->turn = sch_UpdateNextTurnButton(old_state->turn, new_state);
 
     // Update actions remaining
     // new_state->actions_remaining = old_state->actions_remaining;
