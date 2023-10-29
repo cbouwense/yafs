@@ -49,7 +49,7 @@
 #define HUD_BUTTON_MARGIN 50
 #define HUD_ICON_SCALE    0.5
 
-enum LandPlotState {
+enum LandplotState {
     LP_FALLOW,
     LP_PLOWED,
     LP_SEEDED,
@@ -60,17 +60,18 @@ enum LandPlotState {
 typedef struct {
     int id;
     Vector2 pos;
-    enum LandPlotState state;
-} LandPlot;
+    enum LandplotState state;
+} Landplot;
 
 typedef struct {
     Font font;
     bool debug_mode;
 
     int landplot_count;
-    LandPlot *landplots;
+    Landplot *landplots;
 
     int turn;
+    int actions_remaining;
 } Schmungo;
 
 // CSS-like helpers --------------------------------------------------------------------------------
@@ -109,7 +110,17 @@ float sch_left() {
 
 // Component properties ----------------------------------------------------------------------------
 
-Color sch_landplot_color(const enum LandPlotState state)
+Rectangle rec_area(const Vector2 pos, const Vector2 size)
+{
+    return (Rectangle) { pos.x, pos.y, size.x, size.y };
+}
+
+Vector2 sch_LandplotSize()
+{
+    return (Vector2) { sch_vw(5), sch_vw(5) };
+}
+
+Color sch_landplot_color(const enum LandplotState state)
 {
     switch (state) {
         case LP_FALLOW:
@@ -149,7 +160,7 @@ Vector2 sch_NextTurnButtonPos()
 
 // Draw components ---------------------------------------------------------------------------------
 
-void sch_DrawLandPlotGround(const Vector2 pos, const Vector2 size)
+void sch_DrawLandplotGround(const Vector2 pos, const Vector2 size)
 {
     Color color = GREEN;
 
@@ -162,19 +173,19 @@ void sch_DrawLandPlotGround(const Vector2 pos, const Vector2 size)
     );
 }
 
-void sch_DrawLandPlot(const LandPlot *lp)
+void sch_DrawLandplot(const Landplot *lp)
 {
     Vector2 size = { sch_vw(5), sch_vw(5) };
     Color c = sch_landplot_color(lp->state);
     
-    sch_DrawLandPlotGround(lp->pos, size);
+    sch_DrawLandplotGround(lp->pos, size);
     DrawRectangleV(lp->pos, size, c);
 }
 
-void sch_DrawLandPlots(const Schmungo *state)
+void sch_DrawLandplots(const Schmungo *state)
 {
     for (int i = 0; i < state->landplot_count; i++) {
-        sch_DrawLandPlot(&state->landplots[i]);
+        sch_DrawLandplot(&state->landplots[i]);
     }
 }
 
@@ -191,24 +202,31 @@ void sch_DrawNextTurnButton(const Schmungo *state)
 
 void sch_DrawGameState(const Schmungo *state)
 {
+    int y = 30;
     if (!state->debug_mode) return;
 
     // Draw state of all landplots
-    DrawText(TextFormat("LandPlot count: %d", state->landplot_count), 10, 30, 20, WHITE);
+    DrawText(TextFormat("Landplot count: %d", state->landplot_count), 10, y, 20, WHITE);
     for (int i = 0; i < state->landplot_count; i++) {
-        const LandPlot landplot = state->landplots[i];
+        const Landplot landplot = state->landplots[i];
+        y += 20;
 
         DrawText(
-            TextFormat("LandPlot %d: (%.1f, %.1f)", landplot.id, landplot.pos.x, landplot.pos.x),
+            TextFormat("Landplot %d: (%.1f, %.1f)", landplot.id, landplot.pos.x, landplot.pos.x),
             10,
-            50 + (i * 20),
+            y,
             20,
             sch_landplot_color(landplot.state)
         );
     }
 
     // Draw turn
-    DrawText(TextFormat("Turn: %d", state->turn), 10, 100, 20, WHITE);
+    y += 20;
+    DrawText(TextFormat("Turn: %d", state->turn), 10, y, 20, WHITE);
+
+    // Draw actions remaining
+    y += 20;
+    DrawText(TextFormat("Actions remaining: %d", state->actions_remaining), 10, y, 20, WHITE);
 }
 
 void sch_DrawDebugNextTurnButton()
@@ -226,13 +244,31 @@ void sch_DrawDebugNextTurnButton()
 
 // Update Components -------------------------------------------------------------------------------
 
-const LandPlot *sch_UpdateLandPlot(const LandPlot *old_landplot)
+// TODO: this mutates the state. Probably shouldn't do that in a real game, but it's fine for now.
+Landplot *sch_UpdateLandplot(const int i, Schmungo *state)
 {
-    LandPlot *new_lp = malloc(sizeof(*new_lp));
+    Landplot *new_lp = malloc(sizeof(*new_lp));
+    Landplot old_lp = state->landplots[i];
 
-    new_lp->id = old_landplot->id;
-    new_lp->pos = old_landplot->pos;
-    new_lp->state = old_landplot->state;
+    new_lp->id = old_lp.id;
+    new_lp->pos = old_lp.pos;
+    new_lp->state = old_lp.state;
+
+    if (state->actions_remaining <= 0) return new_lp;
+
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mouse_pos = GetMousePosition();
+
+        if (CheckCollisionPointRec(mouse_pos, rec_area(new_lp->pos, sch_LandplotSize()))) {
+            new_lp->state = (new_lp->state + 1) % 5;
+            
+            // NOTE: mutating the actions remaining instead of returning a new state.
+            state->actions_remaining -= 1;
+            printf("Actions remaining: %d\n", state->actions_remaining);
+
+            printf("Landplot %d: %d\n", new_lp->id, new_lp->state);
+        }
+    }
 
     return new_lp;
 }
@@ -321,6 +357,7 @@ const Schmungo *sch_init(Schmungo *state)
     }
 
     state->turn = 1;
+    state->actions_remaining = 2;
 
     SetMasterVolume(0.5);
 
@@ -332,19 +369,26 @@ const Schmungo *sch_update(const Schmungo *old_state)
     // TODO: I kinda want to just have a local struct and then copy the struct over to the new state.
     Schmungo *new_state = malloc(sizeof(*new_state));
     assert(new_state != NULL && "Buy more RAM lol");
-    memset(new_state, 0, sizeof(*new_state));
+    new_state = memcpy(new_state, old_state, sizeof(*new_state));
 
     // Update land plots
     new_state->landplot_count = old_state->landplot_count;
     new_state->landplots = malloc(new_state->landplot_count * sizeof(*new_state->landplots));
     for (int i = 0; i < new_state->landplot_count; i++) {
-        new_state->landplots[i] = *sch_UpdateLandPlot(&old_state->landplots[i]);
+        // TODO: I'm not sure about the implications of this. I'm allocating memory for each landplot
+        // and then copying the old landplot over to the new one. I'm not sure if this is the best
+        // way to do this.
+        new_state->landplots[i] = old_state->landplots[i];
+        new_state->landplots[i] = *sch_UpdateLandplot(i, new_state);
         // TODO: Freeing the old state causes a segfault but I don't know why.
         // free(&old_state->landplots[i]);
     }
 
     // Update turn
     new_state->turn = sch_UpdateNextTurnButton(old_state->turn);
+
+    // Update actions remaining
+    // new_state->actions_remaining = old_state->actions_remaining;
 
     // Update debug mode
     if (IsKeyPressed(KEY_F1)) {
@@ -362,8 +406,11 @@ void sch_draw(const Schmungo *state)
     ClearBackground(COLOR_BACKGROUND);
 
     sch_DrawGameState(state);
-    sch_DrawLandPlots(state);
-    sch_DrawNextTurnButton(state);
+    sch_DrawLandplots(state);
+
+    if (state->actions_remaining == 0) {
+        sch_DrawNextTurnButton(state);
+    }
     
     if (state->debug_mode) {
         DrawFPS(10, 10);
