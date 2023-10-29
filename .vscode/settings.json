@@ -1,9 +1,10 @@
 {
-    "files.associations": {
-        "signal.h": "c",
-        "guppy.h": "c",
-        "stdlib.h": "c",
-        "raylib.h": "c",
-        "*.m": "c"
-    },
+  "files.associations": {
+    "signal.h": "c",
+    "guppy.h": "c",
+    "stdlib.h": "c",
+    "raylib.h": "c",
+    "*.m": "c"
+  },
+  "cmake.configureOnOpen": false
 }

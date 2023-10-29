@@ -65,9 +65,7 @@ typedef struct {
     int turn;
 } Schmungo;
 
-//--------------------------------------------------------------------------------------------------
-// CSS-like helpers
-//--------------------------------------------------------------------------------------------------
+// CSS-like helpers --------------------------------------------------------------------------------
 
 float sch_vh(float vh) {
     return GetRenderHeight() * vh * 0.01;
@@ -101,9 +99,7 @@ float sch_left() {
     return 0;
 }
 
-//--------------------------------------------------------------------------------------------------
-// Components
-//--------------------------------------------------------------------------------------------------
+// Draw components ---------------------------------------------------------------------------------
 
 void sch_DrawLandPlotGround(const Vector2 pos, const Vector2 size)
 {
@@ -179,9 +175,22 @@ void sch_DrawNextTurnButton(const Schmungo *state)
     DrawText("Next Turn", pos.x + 10, pos.y + 10, 30, WHITE);
 }
 
-//--------------------------------------------------------------------------------------------------
-// Update Components
-//--------------------------------------------------------------------------------------------------
+// Draw debug components ---------------------------------------------------------------------------
+
+void sch_DrawDebugNextTurnButton()
+{
+    const Vector2 pos = sch_NextTurnButtonPos();
+    const Vector2 size = sch_NextTurnSize();
+    const Rectangle area = { pos.x, pos.y, size.x, size.y };
+
+    double currentTime = GetTime();
+    int currentSecond = (int)currentTime % 60;
+    const Color c = (currentSecond % 2 == 0) ? BLACK : WHITE;
+
+    DrawRectangleLinesEx(area, 2, c);
+}
+
+// Update Components -------------------------------------------------------------------------------
 
 const LandPlot *sch_UpdateLandPlot(const LandPlot *old_landplot)
 {
@@ -211,7 +220,8 @@ const int sch_UpdateNextTurnButton(const int old_turn)
 
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Vector2 mouse_pos = GetMousePosition();
-        Rectangle button_area = { pos.x, pos.y, sch_vw(5), sch_vw(5) };
+        Rectangle button_area = { pos.x, pos.y, size.x, size.y };
+
         if (CheckCollisionPointRec(mouse_pos, button_area)) {
             new_turn = old_turn + 1;
             printf("Turn: %d\n", new_turn);
@@ -221,9 +231,7 @@ const int sch_UpdateNextTurnButton(const int old_turn)
     return new_turn;
 }
 
-//--------------------------------------------------------------------------------------------------
-// Core
-//--------------------------------------------------------------------------------------------------
+// Game loop core-----------------------------------------------------------------------------------
 
 const Schmungo *sch_init(Schmungo *state)
 {
@@ -296,6 +304,7 @@ const Schmungo *sch_init(Schmungo *state)
 
 const Schmungo *sch_update(const Schmungo *old_state)
 {
+    // TODO: I kinda want to just have a local struct and then copy the struct over to the new state.
     Schmungo *new_state = malloc(sizeof(*new_state));
     assert(new_state != NULL && "Buy more RAM lol");
     memset(new_state, 0, sizeof(*new_state));
@@ -310,8 +319,6 @@ const Schmungo *sch_update(const Schmungo *old_state)
         // free(&old_state->landplots[i]);
     }
 
-    // TODO: I wonder if we could have some sort of reducer thing
-    // TODO: It keeps getting reset to the old state
     // Update turn
     new_state->turn = sch_UpdateNextTurnButton(old_state->turn);
 
@@ -329,15 +336,15 @@ void sch_draw(const Schmungo *state)
     BeginDrawing();
     ClearBackground(COLOR_BACKGROUND);
 
-    if (state->debug_mode) {
-        DrawFPS(10, 10);
-    }
     sch_DrawGameState(state);
-
     sch_DrawLandPlots(state);
-
     sch_DrawNextTurnButton(state);
     
+    if (state->debug_mode) {
+        DrawFPS(10, 10);
+        sch_DrawDebugNextTurnButton();
+    }
+
     EndDrawing();
 }
 
