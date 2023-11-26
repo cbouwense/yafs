@@ -46,14 +46,17 @@ typedef struct GameState {
 typedef struct Ball {
     Vector2 position;
     Vector2 velocity;
-    Vector2 size;
     Color color;
+
+    Rectangle collision;
 } Ball;
 
 typedef struct Paddle {
     Vector2 position;
     Vector2 size;
     Color color;
+
+    Rectangle collision;
 } Paddle;
 
 // CSS-like helpers --------------------------------------------------------------------------------
@@ -122,6 +125,7 @@ int main(void)
 
         ball->position = (Vector2) { x_center(25), y_center(25) };
         ball->velocity = (Vector2) { 1, 0 };
+        ball->collision = (Rectangle) { ball->position.x, ball->position.y, 25, 25 };
     }
 
     { // Initialize paddles
@@ -130,55 +134,66 @@ int main(void)
         memset(paddle_one, 0, sizeof(*paddle_one));
 
         paddle_one->position = (Vector2) { vw(10), vh(50) };
+        paddle_one->collision = (Rectangle) { paddle_one->position.x - 10, paddle_one->position.y - 50, 20, 100 };
 
         paddle_two = malloc(sizeof(*paddle_two));
         assert(paddle_two != NULL && "Buy more RAM lol");
         memset(paddle_two, 0, sizeof(*paddle_two));
 
         paddle_two->position = (Vector2) { vw(90), vh(50) };
+        paddle_two->collision = (Rectangle) { paddle_two->position.x - 10, paddle_two->position.y - 50, 20, 100 };
     }
 
     while (!WindowShouldClose()) {
         { // Update
-            if (!game_state->paused) { // Update ball
-                ball->position.x += ball->velocity.x;
-                ball->position.y += ball->velocity.y;
+            if (!game_state->paused) {
+                { // Update ball
+                    ball->position.x += ball->velocity.x;
+                    ball->position.y += ball->velocity.y;
+                    ball->collision.x = ball->position.x;
+                    ball->collision.y = ball->position.y;
+                }
+
+                { // Update paddles
+                    paddle_one->position.y = GetMousePosition().y;
+                    paddle_one->collision.y = paddle_one->position.y - 50;
+
+                    paddle_two->position.y = GetMousePosition().y;
+                    paddle_two->collision.y = paddle_two->position.y - 50;
+                }
+
+                { // Check for collisions
+                    // Check for collisions with the top and bottom of the screen
+                    if (ball->position.y <= 0 || ball->position.y >= GetRenderHeight()) {
+                        ball->velocity.y *= -1;
+                    }
+
+                    // Check for collisions with the left paddle
+                    if (CheckCollisionRecs(ball->collision, paddle_one->collision)) {
+                        ball->velocity.x *= -1;
+                    }
+
+                    // Check for collisions with the right paddle
+                    if (CheckCollisionRecs(ball->collision, paddle_two->collision)) {
+                        ball->velocity.x *= -1;
+                    }
+
+                    // Check for collisions with the left edge of screen
+                    if (ball->collision.x <= 0) {
+                        game_state->player_two_score++;
+                        ball->position = (Vector2) { x_center(25), y_center(25) };
+                        ball->velocity = (Vector2) { 1, 0 };
+                    }
+
+                    // Check for collisions with the right edge of screen
+                    if (ball->collision.x + ball->collision.width >= GetRenderWidth()) {
+                        game_state->player_one_score++;
+                        ball->position = (Vector2) { x_center(25), y_center(25) };
+                        ball->velocity = (Vector2) { -1, 0 };
+                    }
+                }
             }
 
-            if (!game_state->paused) { // Update paddles
-                paddle_one->position.y = GetMousePosition().y;
-                paddle_two->position.y = GetMousePosition().y;
-            }
-
-            if (!game_state->paused) { // Check for collisions
-                // Check for collisions with the top and bottom of the screen
-                if (ball->position.y <= 0 || ball->position.y >= GetRenderHeight()) {
-                    ball->velocity.y *= -1;
-                }
-
-                // Check for collisions with the paddles
-                if (CheckCollisionCircleRec(ball->position, 25, (Rectangle) { paddle_one->position.x - 10, paddle_one->position.y - 50, 20, 100 })) {
-                    ball->velocity.x *= -1;
-                }
-
-                if (CheckCollisionCircleRec(ball->position, 25, (Rectangle) { paddle_two->position.x - 10, paddle_two->position.y - 50, 20, 100 })) {
-                    ball->velocity.x *= -1;
-                }
-
-                // Check for collisions with the left and right of the screen
-                if (ball->position.x <= 0) {
-                    game_state->player_two_score++;
-                    ball->position = (Vector2) { x_center(25), y_center(25) };
-                    ball->velocity = (Vector2) { 0, 0 };
-                }
-
-                if (ball->position.x >= GetRenderWidth()) {
-                    game_state->player_one_score++;
-                    ball->position = (Vector2) { x_center(25), y_center(25) };
-                    ball->velocity = (Vector2) { 0, 0 };
-                }
-            }
-        
             { // Update game state
                 if (IsKeyPressed(KEY_F1)) {
                     game_state->debug_mode = !game_state->debug_mode;
@@ -194,45 +209,49 @@ int main(void)
             BeginDrawing();
             ClearBackground(COLOR_BACKGROUND);
 
-            // Draw grid
-            if (game_state->debug_mode) {
+            const Vector2 score_one_position = (Vector2) { vw(40), vh(5) };
+            const Vector2 score_two_position = (Vector2) { vw(60), vh(5) };
+            const char *score_one_text = TextFormat("%i", game_state->player_one_score);
+            const char *score_two_text = TextFormat("%i", game_state->player_two_score);
+        
+            { // Draw scores
+                DrawTextEx(game_state->font, score_one_text, score_one_position, FONT_SIZE, 0, WHITE);
+                DrawTextEx(game_state->font, score_two_text, score_two_position, FONT_SIZE, 0, WHITE);
+            }
+
+            { // Draw ball
+                DrawRectangleV(ball->position, (Vector2) { 25, 25 }, WHITE);
+            }
+
+            { // Draw paddles
+                DrawRectangle(paddle_one->position.x - 10, paddle_one->position.y - 50, 20, 100, WHITE);
+                DrawRectangle(paddle_two->position.x - 10, paddle_two->position.y - 50, 20, 100, WHITE);
+            }
+        
+            // Draw debug info
+            if (game_state->debug_mode) { 
+                { // Draw score outlines
+                    Vector2 score_one_text_size = MeasureTextEx(game_state->font, score_one_text, FONT_SIZE, 0);
+                    DrawRectangleLines(score_one_position.x, score_one_position.y, score_one_text_size.x, score_one_text_size.y, ORANGE);
+
+                    Vector2 score_two_text_size = MeasureTextEx(game_state->font, score_two_text, FONT_SIZE, 0);
+                    DrawRectangleLines(score_two_position.x, score_two_position.y, score_two_text_size.x, score_two_text_size.y, ORANGE);
+                }
+
+                // Draw ball outline
+                DrawRectangleLinesEx(ball->collision, 1, ORANGE);
+
+                // Draw paddle outlines
+                DrawRectangleLinesEx(paddle_one->collision, 1, ORANGE);
+                
+
+                // Draw grid
                 for (int i = 0; i < 20; i++) {
                     DrawRectangle(vw(5 * i), 0, 1, vh(100), GREEN);
                     DrawRectangle(0, vh(5 * i), vw(100), 1, GREEN);
                 }
             }
 
-            { // Draw player one score
-                const Vector2 score_one_position = (Vector2) { vw(40), vh(5) };
-                const char *score_one_text = TextFormat("%i", game_state->player_one_score);
-                DrawTextEx(game_state->font, score_one_text, score_one_position, FONT_SIZE, 0, WHITE);
-                
-                // Draw player one score outline
-                if (game_state->debug_mode) {
-                    Vector2 textSize = MeasureTextEx(game_state->font, score_one_text, FONT_SIZE, 0);
-                    DrawRectangleLines(score_one_position.x, score_one_position.y, textSize.x, textSize.y, ORANGE);
-                }
-            }
-
-            { // Draw player two score
-                const Vector2 score_two_position = (Vector2) { vw(60), vh(5) };
-                const char *score_two_text = TextFormat("%i", game_state->player_two_score);
-                DrawTextEx(game_state->font, score_two_text, score_two_position, FONT_SIZE, 0, WHITE);
-                
-                // Draw player two score outline
-                if (game_state->debug_mode) {
-                    Vector2 textSize = MeasureTextEx(game_state->font, score_two_text, FONT_SIZE, 0);
-                    DrawRectangleLines(score_two_position.x, score_two_position.y, textSize.x, textSize.y, ORANGE);
-                }
-            }
-
-            // Draw ball
-            DrawRectangleV(ball->position, (Vector2) { 25, 25 }, WHITE);
-
-            // Draw paddles
-            DrawRectangle(paddle_one->position.x - 10, paddle_one->position.y - 50, 20, 100, WHITE);
-            DrawRectangle(paddle_two->position.x - 10, paddle_two->position.y - 50, 20, 100, WHITE);
-        
             EndDrawing();
         }
     }
