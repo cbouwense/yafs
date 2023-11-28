@@ -8,20 +8,8 @@
 
 #include <raylib.h>
 
-#ifndef _WIN32
-#include <signal.h> // needed for sigaction()
-#endif // _WIN32
-
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #define NOB_IMPLEMENTATION
 #include "nob.h"
-
-#include <raylib.h>
-#include <rlgl.h>
 
 #define GLSL_VERSION 330
 
@@ -124,7 +112,7 @@ int main(void)
         memset(ball, 0, sizeof(*ball));
 
         ball->position = (Vector2) { x_center(25), y_center(25) };
-        ball->velocity = (Vector2) { 1, 0 };
+        ball->velocity = (Vector2) { 100, 0 };
         ball->collision = (Rectangle) { ball->position.x, ball->position.y, 25, 25 };
     }
 
@@ -145,11 +133,13 @@ int main(void)
     }
 
     while (!WindowShouldClose()) {
+        const float deltaTime = GetFrameTime();
+        
         { // Update
             if (!game_state->paused) {
                 { // Update ball
-                    ball->position.x += ball->velocity.x;
-                    ball->position.y += ball->velocity.y;
+                    ball->position.x += ball->velocity.x * deltaTime;
+                    ball->position.y += ball->velocity.y * deltaTime;
                     ball->collision.x = ball->position.x;
                     ball->collision.y = ball->position.y;
                 }
@@ -244,7 +234,6 @@ int main(void)
                 // Draw paddle outlines
                 DrawRectangleLinesEx(paddle_one->collision, 1, ORANGE);
                 
-
                 // Draw grid
                 for (int i = 0; i < 20; i++) {
                     DrawRectangle(vw(5 * i), 0, 1, vh(100), GREEN);
