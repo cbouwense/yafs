@@ -91,6 +91,7 @@ int main(void) {
     GameState game_state;
     Character player;
     Texture2D player_sprite_sheet;
+    Texture2D map;
     int sprite_sheet_row, sprite_sheet_col;
 
     { // Initialization
@@ -114,6 +115,8 @@ int main(void) {
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
         sprite_sheet_row = 0;
         sprite_sheet_col = 0;
+
+        map = LoadTexture("resources/sprout-lands-sprites/Tilesets/map.png");
     }
 
     while (!WindowShouldClose()) {
@@ -174,7 +177,9 @@ int main(void) {
         { // Draw
 draw:       BeginDrawing();
             ClearBackground(COLOR_BACKGROUND);
-            DrawFPS(10, 10);
+
+            // Draw map
+            DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, 5.0f, WHITE);
 
             // Draw player
             DrawTexturePro(
@@ -209,6 +214,8 @@ draw:       BeginDrawing();
 
                 // Draw player rect
                 DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
+
+                DrawFPS(10, 10);
             }
 
             EndDrawing();
