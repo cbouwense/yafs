@@ -241,7 +241,7 @@ bool build_main(Config config)
                 if (!nob_procs_wait(procs)) nob_return_defer(false);
             } else {
                 cmd.count = 0;
-                    nob_cmd_append(&cmd, "clang");
+                    nob_cmd_append(&cmd, "cc");
                     nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
                     // nob_cmd_append(&cmd, "-fsanitize=address");
                     if (config.microphone) nob_cmd_append(&cmd, "-DFEATURE_MICROPHONE");

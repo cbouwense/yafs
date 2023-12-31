@@ -23,6 +23,7 @@
 #define RENDER_WIDTH (16*RENDER_FACTOR)
 #define RENDER_HEIGHT (9*RENDER_FACTOR)
 
+#define MAP_SCALE 1.0f
 #define PLAYER_SPRITE_SCALE 2.0f
 // The "stride" is how wide a sprite is on the sprite sheet
 #define PLAYER_SPRITE_SHEET_STRIDE 48.0f
@@ -82,17 +83,22 @@ typedef struct Character {
 
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    size_t factor = 80;
-    InitWindow(factor*16, factor*9, "YAFS");
+    size_t factor = 60;
+    const int window_width = factor * 16;
+    const int window_height = factor * 9;
+    InitWindow(window_width, window_height, "YAFS");
     SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
 
     GameState game_state;
+    Camera2D camera;
+
     Character player;
     Texture2D player_sprite_sheet;
-    Texture2D map;
     int sprite_sheet_row, sprite_sheet_col;
+    
+    Texture2D map;
 
     { // Initialization
         game_state = (GameState) {
@@ -112,11 +118,20 @@ int main(void) {
             }
         };
 
+        camera = (Camera2D) {
+            .offset = { 0 },
+            .rotation = 0.0f,
+            .target = player.pos,
+            .zoom = 1.0f,
+        };
+
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
         sprite_sheet_row = 0;
         sprite_sheet_col = 0;
 
-        map = LoadTexture("resources/sprout-lands-sprites/Tilesets/map.png");
+        map = LoadTexture("resources/tilesets/map.png");
+        // tilled_dirt = LoadTexture("resources/sprout-lands-sprites/Tilesets/Tilled_Dirt.png");
+        // water = LoadTexture("resources/sprout-lands-sprites/Tilesets/Water.png");
     }
 
     while (!WindowShouldClose()) {
@@ -170,16 +185,22 @@ int main(void) {
 
             pos_diff = Vector2Scale(pos_diff_normalized, PLAYER_WALKING_SPEED * GetFrameTime());
             player.pos = Vector2Add(player.pos, pos_diff);
-            player.rect.x = player.pos.x;
-            player.rect.y = player.pos.y;
+            player.rect.x = player.pos.x - (player.rect.width/2);
+            player.rect.y = player.pos.y - (player.rect.height/2);
+
+            camera.target = (Vector2) {
+                player.rect.x - ((float)window_width/2.0f) + (player.rect.width/2.0f),
+                player.rect.y - ((float)window_height/2.0f) + (player.rect.height/2.0f),
+            };
         }
 
         { // Draw
 draw:       BeginDrawing();
             ClearBackground(COLOR_BACKGROUND);
+            BeginMode2D(camera);
 
             // Draw map
-            DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, 5.0f, WHITE);
+            DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, MAP_SCALE, WHITE);
 
             // Draw player
             DrawTexturePro(
@@ -218,6 +239,7 @@ draw:       BeginDrawing();
                 DrawFPS(10, 10);
             }
 
+            EndMode2D();
             EndDrawing();
         }
 
