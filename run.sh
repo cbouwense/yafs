@@ -1,1 +1,1 @@
-./nob && ./build/schmungo
+./nob && ./build/main
