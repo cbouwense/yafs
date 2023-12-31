@@ -76,26 +76,29 @@ int main(void) {
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
 
-    
+    GameState game_state;
+    Character player;
+    Texture2D player_sprite_sheet;
 
-    // Initialization
-    GameState game_state = (GameState) {
-        .debug_mode = false,
-        .paused = false,
-    };
+    { // Initialization
+        game_state = (GameState) {
+            .debug_mode = false,
+            .paused = false,
+        };
 
-    const float player_size = 150.0f;
-    Character player = {
-        .pos = (Vector2) { .x = vw(50), .y = vh(50) },
-        .speed = 10,
-        .rect = (Rectangle) {
-            .x = vw(50) - (player_size/2.0f),
-            .y = vh(50) - (player_size/2.0f),
-            .width = player_size,
-            .height = player_size,
-        }
-    };
-    Texture2D player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
+        const float player_size = 150.0f;
+        player = (Character) {
+            .pos = (Vector2) { .x = vw(50), .y = vh(50) },
+            .speed = 10,
+            .rect = (Rectangle) {
+                .x = vw(50) - (player_size/2.0f),
+                .y = vh(50) - (player_size/2.0f),
+                .width = player_size,
+                .height = player_size,
+            }
+        };
+        player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
+    }
 
     while (!WindowShouldClose()) {
         const float deltaTime = GetFrameTime();
@@ -123,7 +126,8 @@ draw:       BeginDrawing();
             // Draw player
             DrawTexturePro(
                 player_sprite_sheet, 
-                (Rectangle) {0.0f, 0.0f, 48.0f, 48.0f}, 
+                 // TODO: updating the sprite tile in the draw method feels very very wrong.
+                (Rectangle) {((int)GetTime() % 2 == 0 ? 0.0f : 48.0f), 0.0f, 48.0f, 48.0f},
                 (Rectangle) {
                     player.rect.x,
                     player.rect.y,
@@ -153,7 +157,7 @@ draw:       BeginDrawing();
             EndDrawing();
         }
 
-    } // game loop end
+    }
     
 
     CloseAudioDevice();
