@@ -1,10 +1,12 @@
 {
   "files.associations": {
+    "*.kt": "kotlin",
     "signal.h": "c",
     "guppy.h": "c",
     "stdlib.h": "c",
     "raylib.h": "c",
-    "*.m": "c"
-  },
+    "*.m": "c",
+    "raymath.h": "c"
+},
   "cmake.configureOnOpen": false
 }

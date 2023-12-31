@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include <raylib.h>
+#include <raymath.h>
 
 #define NOB_IMPLEMENTATION
 #include "nob.h"
@@ -22,6 +23,7 @@
 #define RENDER_WIDTH (16*RENDER_FACTOR)
 #define RENDER_HEIGHT (9*RENDER_FACTOR)
 
+#define PLAYER_SPRITE_SCALE 2.0f
 // The "stride" is how wide a sprite is on the sprite sheet
 #define PLAYER_SPRITE_SHEET_STRIDE 48.0f
 #define PLAYER_SPRITE_SHEET_DOWN_ROW 0
@@ -29,7 +31,8 @@
 #define PLAYER_SPRITE_SHEET_LEFT_ROW 2
 #define PLAYER_SPRITE_SHEET_RIGHT_ROW 3
 
-#define PLAYER_WALKING_SPEED_MILLIS 250
+#define PLAYER_WALKING_SPEED 200.0f
+#define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
 
 // CSS-like helpers --------------------------------------------------------------------------------
 
@@ -80,7 +83,7 @@ typedef struct Character {
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     size_t factor = 80;
-    InitWindow(factor*16, factor*9, "RPG Demo");
+    InitWindow(factor*16, factor*9, "YAFS");
     SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
@@ -99,7 +102,7 @@ int main(void) {
         const float player_size = 150.0f;
         player = (Character) {
             .pos = (Vector2) { .x = vw(50), .y = vh(50) },
-            .speed = 10,
+            .speed = PLAYER_WALKING_SPEED,
             .rect = (Rectangle) {
                 .x = vw(50) - (player_size/2.0f),
                 .y = vh(50) - (player_size/2.0f),
@@ -107,7 +110,7 @@ int main(void) {
                 .height = player_size,
             }
         };
-        
+
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
         sprite_sheet_row = 0;
         sprite_sheet_col = 0;
@@ -137,11 +140,17 @@ int main(void) {
             } else if (IsKeyDown(KEY_RIGHT)) {
                 sprite_sheet_row = PLAYER_SPRITE_SHEET_RIGHT_ROW;
             }
+            
+            Vector2 pos_diff = { 0.0f, 0.0f };
+            if (IsKeyDown(KEY_LEFT)) pos_diff.x--;
+            if (IsKeyDown(KEY_RIGHT)) pos_diff.x++;
+            if (IsKeyDown(KEY_UP)) pos_diff.y--;
+            if (IsKeyDown(KEY_DOWN)) pos_diff.y++;
+            Vector2 pos_diff_normalized = Vector2Normalize(pos_diff);
 
-            // Idle animation frames
-            const int now_in_millis = (int)(GetTime() * 1000.0f); 
-            // TODO: this is probably not actually what is_idle should totally be.
-            const bool is_idle = !IsKeyDown(KEY_UP) && !IsKeyDown(KEY_DOWN) && !IsKeyDown(KEY_LEFT) && !IsKeyDown(KEY_RIGHT);
+            // Movement animation frames
+            const int now_in_millis = (int)(GetTime() * 1000.0f);
+            const bool is_idle = Vector2Length(pos_diff_normalized) == 0.0f;
             if (is_idle) {
                 if (now_in_millis % 2000 < 1500) {
                     sprite_sheet_col = 0;
@@ -149,12 +158,17 @@ int main(void) {
                     sprite_sheet_col = 1;
                 }
             } else {
-                if (now_in_millis % (PLAYER_WALKING_SPEED_MILLIS*2) < PLAYER_WALKING_SPEED_MILLIS) {
+                if (now_in_millis % (PLAYER_WALKING_SPEED_ANIM_MILLIS*2) < PLAYER_WALKING_SPEED_ANIM_MILLIS) {
                     sprite_sheet_col = 2;
                 } else {
                     sprite_sheet_col = 3;
                 }
             }
+
+            pos_diff = Vector2Scale(pos_diff_normalized, PLAYER_WALKING_SPEED * GetFrameTime());
+            player.pos = Vector2Add(player.pos, pos_diff);
+            player.rect.x = player.pos.x;
+            player.rect.y = player.pos.y;
         }
 
         { // Draw
@@ -162,10 +176,9 @@ draw:       BeginDrawing();
             ClearBackground(COLOR_BACKGROUND);
             DrawFPS(10, 10);
 
-            const float scale = 3.0f;
             // Draw player
             DrawTexturePro(
-                player_sprite_sheet, 
+                player_sprite_sheet,
                 (Rectangle) {
                     sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
                     sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
@@ -173,16 +186,16 @@ draw:       BeginDrawing();
                     PLAYER_SPRITE_SHEET_STRIDE,
                 },
                 (Rectangle) {
-                    player.rect.x,
-                    player.rect.y,
-                    player.rect.width * scale,
-                    player.rect.height * scale,
-                }, 
+                    player.pos.x,
+                    player.pos.y,
+                    player.rect.width * PLAYER_SPRITE_SCALE,
+                    player.rect.height * PLAYER_SPRITE_SCALE,
+                },
                 (Vector2) {
                     player.rect.width,
                     player.rect.height,
-                }, 
-                0.0f, 
+                },
+                0.0f,
                 WHITE
             );
 
@@ -203,7 +216,7 @@ draw:       BeginDrawing();
 
     }
     
-
+    UnloadTexture(player_sprite_sheet);
     CloseAudioDevice();
     CloseWindow();
 
