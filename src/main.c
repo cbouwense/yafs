@@ -19,12 +19,13 @@
 #define FONT_SIZE 64
 
 #define COLOR_BACKGROUND WHITE
-#define RENDER_FACTOR 100
-#define RENDER_WIDTH (16*RENDER_FACTOR)
-#define RENDER_HEIGHT (9*RENDER_FACTOR)
+#define WINDOW_INIT_FACTOR 100
+#define WINDOW_INIT_WIDTH WINDOW_INIT_FACTOR * 16
+#define WINDOW_INIT_HEIGHT WINDOW_INIT_FACTOR * 9
 
-#define MAP_SCALE 1.0f
-#define PLAYER_SPRITE_SCALE 2.0f
+#define MAP_SCALE 3.0f
+#define PLAYER_SPRITE_SCALE 1.5f
+#define PLAYER_SIZE 150.0f
 // The "stride" is how wide a sprite is on the sprite sheet
 #define PLAYER_SPRITE_SHEET_STRIDE 48.0f
 #define PLAYER_SPRITE_SHEET_DOWN_ROW 0
@@ -32,7 +33,7 @@
 #define PLAYER_SPRITE_SHEET_LEFT_ROW 2
 #define PLAYER_SPRITE_SHEET_RIGHT_ROW 3
 
-#define PLAYER_WALKING_SPEED 200.0f
+#define PLAYER_WALKING_SPEED 300.0f
 #define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
 
 // CSS-like helpers --------------------------------------------------------------------------------
@@ -75,18 +76,12 @@ typedef struct GameState {
 } GameState;
 
 typedef struct Character {
-    Vector2   pos;
-    int       speed;
-
     Rectangle rect;
 } Character;
 
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    size_t factor = 60;
-    const int window_width = factor * 16;
-    const int window_height = factor * 9;
-    InitWindow(window_width, window_height, "YAFS");
+    InitWindow(WINDOW_INIT_WIDTH, WINDOW_INIT_HEIGHT, "YAFS");
     SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
@@ -106,22 +101,19 @@ int main(void) {
             .paused = false,
         };
 
-        const float player_size = 150.0f;
         player = (Character) {
-            .pos = (Vector2) { .x = vw(50), .y = vh(50) },
-            .speed = PLAYER_WALKING_SPEED,
             .rect = (Rectangle) {
-                .x = vw(50) - (player_size/2.0f),
-                .y = vh(50) - (player_size/2.0f),
-                .width = player_size,
-                .height = player_size,
+                .x = vw(50),
+                .y = vh(50),
+                .width = PLAYER_SIZE,
+                .height = PLAYER_SIZE,
             }
         };
 
         camera = (Camera2D) {
             .offset = { 0 },
             .rotation = 0.0f,
-            .target = player.pos,
+            .target = (Vector2) { player.rect.x, player.rect.y },
             .zoom = 1.0f,
         };
 
@@ -184,13 +176,13 @@ int main(void) {
             }
 
             pos_diff = Vector2Scale(pos_diff_normalized, PLAYER_WALKING_SPEED * GetFrameTime());
-            player.pos = Vector2Add(player.pos, pos_diff);
-            player.rect.x = player.pos.x - (player.rect.width/2);
-            player.rect.y = player.pos.y - (player.rect.height/2);
+
+            player.rect.x += pos_diff.x;
+            player.rect.y += pos_diff.y;
 
             camera.target = (Vector2) {
-                player.rect.x - ((float)window_width/2.0f) + (player.rect.width/2.0f),
-                player.rect.y - ((float)window_height/2.0f) + (player.rect.height/2.0f),
+                player.rect.x - ((float)GetScreenWidth()/2.0f) + (player.rect.width/2.0f),
+                player.rect.y - ((float)GetScreenHeight()/2.0f) + (player.rect.height/2.0f),
             };
         }
 
@@ -212,8 +204,8 @@ draw:       BeginDrawing();
                     PLAYER_SPRITE_SHEET_STRIDE,
                 },
                 (Rectangle) {
-                    player.pos.x,
-                    player.pos.y,
+                    player.rect.x,
+                    player.rect.y,
                     player.rect.width * PLAYER_SPRITE_SCALE,
                     player.rect.height * PLAYER_SPRITE_SCALE,
                 },
