@@ -22,6 +22,15 @@
 #define RENDER_WIDTH (16*RENDER_FACTOR)
 #define RENDER_HEIGHT (9*RENDER_FACTOR)
 
+// The "stride" is how wide a sprite is on the sprite sheet
+#define PLAYER_SPRITE_SHEET_STRIDE 48.0f
+#define PLAYER_SPRITE_SHEET_DOWN_ROW 0
+#define PLAYER_SPRITE_SHEET_UP_ROW 1
+#define PLAYER_SPRITE_SHEET_LEFT_ROW 2
+#define PLAYER_SPRITE_SHEET_RIGHT_ROW 3
+
+#define PLAYER_WALKING_SPEED_MILLIS 250
+
 // CSS-like helpers --------------------------------------------------------------------------------
 
 float vh(float vh) {
@@ -79,6 +88,7 @@ int main(void) {
     GameState game_state;
     Character player;
     Texture2D player_sprite_sheet;
+    int sprite_sheet_row, sprite_sheet_col;
 
     { // Initialization
         game_state = (GameState) {
@@ -97,12 +107,13 @@ int main(void) {
                 .height = player_size,
             }
         };
+        
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
+        sprite_sheet_row = 0;
+        sprite_sheet_col = 0;
     }
 
     while (!WindowShouldClose()) {
-        const float deltaTime = GetFrameTime();
-
         { // Update
             { // Can be done regardless of pause state. 
                 if (IsKeyPressed(KEY_F1)) {
@@ -115,6 +126,35 @@ int main(void) {
             }
 
             if (game_state.paused) goto draw;
+
+            // Animation frames for different directions
+            if (IsKeyDown(KEY_UP)) {
+                sprite_sheet_row = PLAYER_SPRITE_SHEET_UP_ROW;
+            } else if (IsKeyDown(KEY_DOWN) || (IsKeyDown(KEY_LEFT) && IsKeyDown(KEY_RIGHT))) {
+                sprite_sheet_row = PLAYER_SPRITE_SHEET_DOWN_ROW;
+            } else if (IsKeyDown(KEY_LEFT)) {
+                sprite_sheet_row = PLAYER_SPRITE_SHEET_LEFT_ROW;
+            } else if (IsKeyDown(KEY_RIGHT)) {
+                sprite_sheet_row = PLAYER_SPRITE_SHEET_RIGHT_ROW;
+            }
+
+            // Idle animation frames
+            const int now_in_millis = (int)(GetTime() * 1000.0f); 
+            // TODO: this is probably not actually what is_idle should totally be.
+            const bool is_idle = !IsKeyDown(KEY_UP) && !IsKeyDown(KEY_DOWN) && !IsKeyDown(KEY_LEFT) && !IsKeyDown(KEY_RIGHT);
+            if (is_idle) {
+                if (now_in_millis % 2000 < 1500) {
+                    sprite_sheet_col = 0;
+                } else {
+                    sprite_sheet_col = 1;
+                }
+            } else {
+                if (now_in_millis % (PLAYER_WALKING_SPEED_MILLIS*2) < PLAYER_WALKING_SPEED_MILLIS) {
+                    sprite_sheet_col = 2;
+                } else {
+                    sprite_sheet_col = 3;
+                }
+            }
         }
 
         { // Draw
@@ -126,8 +166,12 @@ draw:       BeginDrawing();
             // Draw player
             DrawTexturePro(
                 player_sprite_sheet, 
-                 // TODO: updating the sprite tile in the draw method feels very very wrong.
-                (Rectangle) {((int)GetTime() % 2 == 0 ? 0.0f : 48.0f), 0.0f, 48.0f, 48.0f},
+                (Rectangle) {
+                    sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
+                    sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
+                    PLAYER_SPRITE_SHEET_STRIDE,
+                    PLAYER_SPRITE_SHEET_STRIDE,
+                },
                 (Rectangle) {
                     player.rect.x,
                     player.rect.y,
