@@ -23,9 +23,17 @@
 #define WINDOW_INIT_WIDTH WINDOW_INIT_FACTOR * 16
 #define WINDOW_INIT_HEIGHT WINDOW_INIT_FACTOR * 9
 
+// TODO: don't actually use these? just testing
+#define MAP_WIDTH 1280.0f
+#define MAP_HEIGHT 720.0f
+
+#define CAMERA_ROTATION 0.0f
+#define CAMERA_ZOOM 1.0f
+
 #define MAP_SCALE 3.0f
-#define PLAYER_SPRITE_SCALE 1.5f
-#define PLAYER_SIZE 150.0f
+#define PLAYER_SPRITE_SCALE 3.0f
+#define PLAYER_WIDTH 64.0f
+#define PLAYER_HEIGHT 64.0f
 // The "stride" is how wide a sprite is on the sprite sheet
 #define PLAYER_SPRITE_SHEET_STRIDE 48.0f
 #define PLAYER_SPRITE_SHEET_DOWN_ROW 0
@@ -34,7 +42,9 @@
 #define PLAYER_SPRITE_SHEET_RIGHT_ROW 3
 
 #define PLAYER_WALKING_SPEED 300.0f
+#define PLAYER_RUNNING_SPEED 500.0f
 #define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
+#define PLAYER_RUNNING_SPEED_ANIM_MILLIS 100
 
 // CSS-like helpers --------------------------------------------------------------------------------
 
@@ -105,16 +115,16 @@ int main(void) {
             .rect = (Rectangle) {
                 .x = vw(50),
                 .y = vh(50),
-                .width = PLAYER_SIZE,
-                .height = PLAYER_SIZE,
+                .width = PLAYER_WIDTH,
+                .height = PLAYER_HEIGHT,
             }
         };
 
         camera = (Camera2D) {
             .offset = { 0 },
-            .rotation = 0.0f,
+            .rotation = CAMERA_ROTATION,
             .target = (Vector2) { player.rect.x, player.rect.y },
-            .zoom = 1.0f,
+            .zoom = CAMERA_ZOOM,
         };
 
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
@@ -122,8 +132,6 @@ int main(void) {
         sprite_sheet_col = 0;
 
         map = LoadTexture("resources/tilesets/map.png");
-        // tilled_dirt = LoadTexture("resources/sprout-lands-sprites/Tilesets/Tilled_Dirt.png");
-        // water = LoadTexture("resources/sprout-lands-sprites/Tilesets/Water.png");
     }
 
     while (!WindowShouldClose()) {
@@ -161,6 +169,9 @@ int main(void) {
             // Movement animation frames
             const int now_in_millis = (int)(GetTime() * 1000.0f);
             const bool is_idle = Vector2Length(pos_diff_normalized) == 0.0f;
+            const bool is_running = !is_idle && IsKeyDown(KEY_LEFT_SHIFT);
+            const float speed = is_running ? PLAYER_RUNNING_SPEED : PLAYER_WALKING_SPEED;
+            const int anim_millis = is_running ? PLAYER_RUNNING_SPEED_ANIM_MILLIS : PLAYER_WALKING_SPEED_ANIM_MILLIS;
             if (is_idle) {
                 if (now_in_millis % 2000 < 1500) {
                     sprite_sheet_col = 0;
@@ -168,21 +179,24 @@ int main(void) {
                     sprite_sheet_col = 1;
                 }
             } else {
-                if (now_in_millis % (PLAYER_WALKING_SPEED_ANIM_MILLIS*2) < PLAYER_WALKING_SPEED_ANIM_MILLIS) {
+                if (now_in_millis % (anim_millis*2) < anim_millis) {
                     sprite_sheet_col = 2;
                 } else {
                     sprite_sheet_col = 3;
                 }
             }
 
-            pos_diff = Vector2Scale(pos_diff_normalized, PLAYER_WALKING_SPEED * GetFrameTime());
+            pos_diff = Vector2Scale(pos_diff_normalized, speed * GetFrameTime());
 
             player.rect.x += pos_diff.x;
             player.rect.y += pos_diff.y;
-
+            
+            // TODO: what the fuck
+            float new_cam_x = player.rect.x - ((float)GetScreenWidth()/2.0f) + (player.rect.width/2.0f);
+            float new_cam_y = player.rect.y - ((float)GetScreenHeight()/2.0f) + (player.rect.height/2.0f);
             camera.target = (Vector2) {
-                player.rect.x - ((float)GetScreenWidth()/2.0f) + (player.rect.width/2.0f),
-                player.rect.y - ((float)GetScreenHeight()/2.0f) + (player.rect.height/2.0f),
+                Clamp(new_cam_x, 0.0f, MAP_WIDTH),
+                Clamp(new_cam_y, 0.0f, MAP_HEIGHT),
             };
         }
 
@@ -206,25 +220,16 @@ draw:       BeginDrawing();
                 (Rectangle) {
                     player.rect.x,
                     player.rect.y,
-                    player.rect.width * PLAYER_SPRITE_SCALE,
-                    player.rect.height * PLAYER_SPRITE_SCALE,
+                    PLAYER_WIDTH * PLAYER_SPRITE_SCALE,
+                    PLAYER_HEIGHT * PLAYER_SPRITE_SCALE,
                 },
-                (Vector2) {
-                    player.rect.width,
-                    player.rect.height,
-                },
+                (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
                 0.0f,
                 WHITE
             );
 
             // Draw debug info
             if (game_state.debug_mode) { 
-                // Draw grid
-                for (int i = 0; i < 20; i++) {
-                    DrawRectangle(vw(5 * i), 0, 1, vh(100), GREEN);
-                    DrawRectangle(0, vh(5 * i), vw(100), 1, GREEN);
-                }
-
                 // Draw player rect
                 DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
 
