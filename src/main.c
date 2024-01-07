@@ -32,6 +32,8 @@
 #define CAMERA_ZOOM 1.0f
 
 #define MAP_SCALE 3.0f
+#define MAP_CELL_SIZE 64.0f
+
 #define PLAYER_SPRITE_SCALE 3.0f
 #define PLAYER_WIDTH 64.0f
 #define PLAYER_HEIGHT 64.0f
@@ -41,7 +43,6 @@
 #define PLAYER_SPRITE_SHEET_UP_ROW 1
 #define PLAYER_SPRITE_SHEET_LEFT_ROW 2
 #define PLAYER_SPRITE_SHEET_RIGHT_ROW 3
-
 #define PLAYER_WALKING_SPEED 300.0f
 #define PLAYER_RUNNING_SPEED 500.0f
 #define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
@@ -50,6 +51,7 @@
 #define INVENTORY_CAPACITY 8
 
 #define ITEM_SPRITE_SCALE 75.0f
+// The "stride" is how wide a sprite is on the sprite sheet
 #define ITEM_SPRITE_SHEET_STRIDE 16.0f
 #define ITEM_ID_HOE 0
 #define ITEM_ID_WATERING_CAN 1
@@ -115,7 +117,6 @@ int main(void) {
     SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
-
     SetTraceLogLevel(LOG_ALL);
 
     GameState game_state;
@@ -131,6 +132,13 @@ int main(void) {
     Texture2D map;
 
     { // Initialization
+        item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
+        map = LoadTexture("resources/tilesets/map.png");
+        player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
+
+        sprite_sheet_row = 0;
+        sprite_sheet_col = 0;
+
         game_state = (GameState) {
             .debug_mode = false,
             .paused = false,
@@ -145,8 +153,6 @@ int main(void) {
             }
         };
 
-        item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
-        
         Item hoe = { 
             .id = ITEM_ID_HOE,
             .name = "Hoe",
@@ -175,12 +181,6 @@ int main(void) {
             .target = (Vector2) { player.rect.x, player.rect.y },
             .zoom = CAMERA_ZOOM,
         };
-
-        player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
-        sprite_sheet_row = 0;
-        sprite_sheet_col = 0;
-
-        map = LoadTexture("resources/tilesets/map.png");
     }
 
     while (!WindowShouldClose()) {
@@ -311,6 +311,10 @@ draw:       BeginDrawing();
 
                 // Draw game objects debug info
                 if (game_state.debug_mode) {
+                    for (int i = 0; i < MAP_WIDTH * MAP_SCALE; i += MAP_CELL_SIZE) {
+                        DrawLine(i, 0, i+1, MAP_HEIGHT * MAP_SCALE, LIME);
+                        DrawLine(0, i, MAP_WIDTH * MAP_SCALE, i+1, LIME);
+                    }
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
 
