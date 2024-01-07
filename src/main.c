@@ -17,6 +17,7 @@
 #define GLSL_VERSION 330
 
 #define N (1<<13)
+#define FONT_SIZE_DEBUG 20
 #define FONT_SIZE 64
 
 #define COLOR_BACKGROUND WHITE
@@ -32,7 +33,7 @@
 #define CAMERA_ZOOM 1.0f
 
 #define MAP_SCALE 3.0f
-#define MAP_CELL_SIZE 64.0f
+#define MAP_CELL_SIZE 16.0f
 
 #define PLAYER_SPRITE_SCALE 3.0f
 #define PLAYER_WIDTH 64.0f
@@ -110,6 +111,13 @@ typedef struct Inventory {
 typedef struct Character {
     Rectangle rect;
 } Character;
+
+Vector2 get_player_pos(Character player) {
+    return (Vector2) {
+        player.rect.x + (player.rect.width / 2),
+        player.rect.y + player.rect.height - (player.rect.height / 5),
+    };
+}
 
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -307,14 +315,26 @@ draw:       BeginDrawing();
                     (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
                     0.0f,
                     WHITE
-                );
+                ); 
+
+                // Draw cell that player is on
+                // DrawRectangleLinesEx()
 
                 // Draw game objects debug info
                 if (game_state.debug_mode) {
-                    for (int i = 0; i < MAP_WIDTH * MAP_SCALE; i += MAP_CELL_SIZE) {
-                        DrawLine(i, 0, i+1, MAP_HEIGHT * MAP_SCALE, LIME);
-                        DrawLine(0, i, MAP_WIDTH * MAP_SCALE, i+1, LIME);
+                    for (int i = 0; i < MAP_WIDTH * MAP_SCALE; i += MAP_CELL_SIZE * MAP_SCALE) {
+                        DrawLine(i, 0, i+1, MAP_HEIGHT * MAP_SCALE, PINK);
+                        DrawLine(0, i, MAP_WIDTH * MAP_SCALE, i+1, PINK);
                     }
+                    DrawRectangleRec(
+                        (Rectangle) {
+                            get_player_pos(player).x - (float)((int)get_player_pos(player).x % (int)(MAP_CELL_SIZE * MAP_SCALE)),
+                            get_player_pos(player).y - (float)((int)get_player_pos(player).y % (int)(MAP_CELL_SIZE * MAP_SCALE)),
+                            MAP_CELL_SIZE * MAP_SCALE,
+                            MAP_CELL_SIZE * MAP_SCALE,
+                        },
+                        RED
+                    );
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
 
@@ -378,6 +398,7 @@ draw:       BeginDrawing();
                 // Draw UI debug stuff
                 if (game_state.debug_mode) { 
                     DrawFPS(10, 10);
+                    DrawText(TextFormat("Player pos: (%d, %d)", (int)get_player_pos(player).x, (int)get_player_pos(player).y), 10, 30, FONT_SIZE_DEBUG, WHITE);
                     DrawRectangleLinesEx(inventory.rect, 1.0f, ORANGE);
                 }
             }
