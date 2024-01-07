@@ -46,6 +46,13 @@
 #define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
 #define PLAYER_RUNNING_SPEED_ANIM_MILLIS 100
 
+#define INVENTORY_CAPACITY 8
+
+#define ITEM_SPRITE_SCALE 75.0f
+#define ITEM_SPRITE_SHEET_STRIDE 16.0f
+#define ITEM_ID_HOE 0
+#define ITEM_ID_WATERING_CAN 1
+
 // CSS-like helpers --------------------------------------------------------------------------------
 
 float vh(float vh) {
@@ -85,6 +92,18 @@ typedef struct GameState {
     bool paused;
 } GameState;
 
+typedef struct Item {
+    int id;
+    char name[256];
+    Vector2 sprite_sheet_pos;
+} Item;
+
+typedef struct Inventory {
+    Item items[INVENTORY_CAPACITY];
+    int selected_idx;
+    Rectangle rect;
+} Inventory;
+
 typedef struct Character {
     Rectangle rect;
 } Character;
@@ -103,6 +122,9 @@ int main(void) {
     Texture2D player_sprite_sheet;
     int sprite_sheet_row, sprite_sheet_col;
     
+    Inventory inventory;
+    Texture2D item_sprite_sheet;
+
     Texture2D map;
 
     { // Initialization
@@ -118,6 +140,30 @@ int main(void) {
                 .width = PLAYER_WIDTH,
                 .height = PLAYER_HEIGHT,
             }
+        };
+
+        item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
+        
+        Item hoe = { 
+            .id = ITEM_ID_HOE,
+            .name = "Hoe",
+            .sprite_sheet_pos = (Vector2) { 32.0f, 0.0f },
+        };
+        Item watering_can = { 
+            .id = ITEM_ID_HOE,
+            .name = "Watering Can",
+            .sprite_sheet_pos = (Vector2) { 0.0f, 0.0f },
+        };
+
+        inventory = (Inventory) {
+            .items = { hoe, watering_can },
+            .selected_idx = 0,
+            .rect = (Rectangle) {
+                .x = vw(25.0f),
+                .y = vh(85.0f),
+                .width = vw(50.0f),
+                .height = vh(10.0f),
+            },
         };
 
         camera = (Camera2D) {
@@ -141,7 +187,7 @@ int main(void) {
                     game_state.debug_mode = !game_state.debug_mode;
                 }
 
-                if (IsKeyPressed(KEY_SPACE)) {
+                if (IsKeyPressed(KEY_TAB)) {
                     game_state.paused = !game_state.paused;
                 }
             }
@@ -211,40 +257,99 @@ int main(void) {
         { // Draw
 draw:       BeginDrawing();
             ClearBackground(COLOR_BACKGROUND);
-            BeginMode2D(camera);
 
-            // Draw map
-            DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, MAP_SCALE, WHITE);
+            { // Draw world objects
+                BeginMode2D(camera);
 
-            // Draw player
-            DrawTexturePro(
-                player_sprite_sheet,
-                (Rectangle) {
-                    sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
-                    sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
-                    PLAYER_SPRITE_SHEET_STRIDE,
-                    PLAYER_SPRITE_SHEET_STRIDE,
-                },
-                (Rectangle) {
-                    player.rect.x,
-                    player.rect.y,
-                    PLAYER_WIDTH * PLAYER_SPRITE_SCALE,
-                    PLAYER_HEIGHT * PLAYER_SPRITE_SCALE,
-                },
-                (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
-                0.0f,
-                WHITE
-            );
+                // Draw map
+                DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, MAP_SCALE, WHITE);
 
-            // Draw debug info
-            if (game_state.debug_mode) { 
-                // Draw player rect
-                DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
+                // Draw player
+                DrawTexturePro(
+                    player_sprite_sheet,
+                    (Rectangle) {
+                        sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
+                        sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
+                        PLAYER_SPRITE_SHEET_STRIDE,
+                        PLAYER_SPRITE_SHEET_STRIDE,
+                    },
+                    (Rectangle) {
+                        player.rect.x,
+                        player.rect.y,
+                        PLAYER_WIDTH * PLAYER_SPRITE_SCALE,
+                        PLAYER_HEIGHT * PLAYER_SPRITE_SCALE,
+                    },
+                    (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
+                    0.0f,
+                    WHITE
+                );
 
-                DrawFPS(10, 10);
+                // Draw game objects debug info
+                if (game_state.debug_mode) {
+                    DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
+                }
+
+                EndMode2D();
             }
 
-            EndMode2D();
+            { // Draw UI
+                // Draw hoe in inventory
+                DrawTexturePro(
+                    item_sprite_sheet,
+                    (Rectangle) {
+                        inventory.items[0].sprite_sheet_pos.x,
+                        inventory.items[0].sprite_sheet_pos.y,
+                        ITEM_SPRITE_SHEET_STRIDE,
+                        ITEM_SPRITE_SHEET_STRIDE,
+                    },
+                    (Rectangle) {
+                        inventory.rect.x,
+                        inventory.rect.y,
+                        ITEM_SPRITE_SCALE,
+                        ITEM_SPRITE_SCALE,
+                    },
+                    (Vector2) { 0 },
+                    0.0f,
+                    WHITE
+                );
+
+                // Draw watering can in inventory
+                DrawTexturePro(
+                    item_sprite_sheet,
+                    (Rectangle) {
+                        inventory.items[1].sprite_sheet_pos.x,
+                        inventory.items[1].sprite_sheet_pos.y,
+                        ITEM_SPRITE_SHEET_STRIDE,
+                        ITEM_SPRITE_SHEET_STRIDE,
+                    },
+                    (Rectangle) {
+                        inventory.rect.x + (inventory.rect.width / 8),
+                        inventory.rect.y,
+                        ITEM_SPRITE_SCALE,
+                        ITEM_SPRITE_SCALE,
+                    },
+                    (Vector2) { 0 },
+                    0.0f,
+                    WHITE
+                );
+                
+                DrawRectangleLinesEx(
+                    (Rectangle) {
+                        inventory.rect.x + ((inventory.rect.width / INVENTORY_CAPACITY) * inventory.selected_idx),
+                        inventory.rect.y,
+                        inventory.rect.height,
+                        inventory.rect.height,
+                    },
+                    4.0f,
+                    WHITE
+                );
+
+                if (game_state.debug_mode) { 
+                    DrawFPS(10, 10);
+                    DrawRectangleLinesEx(inventory.rect, 1.0f, ORANGE);
+                }
+            }
+
             EndDrawing();
         }
 
