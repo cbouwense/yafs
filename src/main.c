@@ -146,50 +146,28 @@ int main(void) {
                 }
             }
 
+            // The rest of the update should not happen if the game is paused. So, if we're paused
+            // at this point just jump to drawing.
             if (game_state.paused) goto draw;
 
-            // Animation frames for different directions
-            if (IsKeyDown(KEY_UP)) {
-                sprite_sheet_row = PLAYER_SPRITE_SHEET_UP_ROW;
-            } else if (IsKeyDown(KEY_DOWN) || (IsKeyDown(KEY_LEFT) && IsKeyDown(KEY_RIGHT))) {
-                sprite_sheet_row = PLAYER_SPRITE_SHEET_DOWN_ROW;
-            } else if (IsKeyDown(KEY_LEFT)) {
-                sprite_sheet_row = PLAYER_SPRITE_SHEET_LEFT_ROW;
-            } else if (IsKeyDown(KEY_RIGHT)) {
-                sprite_sheet_row = PLAYER_SPRITE_SHEET_RIGHT_ROW;
-            }
-            
-            Vector2 pos_diff = { 0.0f, 0.0f };
-            if (IsKeyDown(KEY_LEFT)) pos_diff.x--;
-            if (IsKeyDown(KEY_RIGHT)) pos_diff.x++;
-            if (IsKeyDown(KEY_UP)) pos_diff.y--;
-            if (IsKeyDown(KEY_DOWN)) pos_diff.y++;
-            Vector2 pos_diff_normalized = Vector2Normalize(pos_diff);
+            Vector2 pos_diff_normalized = { 0 };
+            { // Movement
+                Vector2 pos_diff = { 0 };
+                if (IsKeyDown(KEY_LEFT)) pos_diff.x--;
+                if (IsKeyDown(KEY_RIGHT)) pos_diff.x++;
+                if (IsKeyDown(KEY_UP)) pos_diff.y--;
+                if (IsKeyDown(KEY_DOWN)) pos_diff.y++;
 
-            // Movement animation frames
-            const int now_in_millis = (int)(GetTime() * 1000.0f);
+                pos_diff_normalized = Vector2Normalize(pos_diff);
+            }
+
             const bool is_idle = Vector2Length(pos_diff_normalized) == 0.0f;
             const bool is_running = !is_idle && IsKeyDown(KEY_LEFT_SHIFT);
             const float speed = is_running ? PLAYER_RUNNING_SPEED : PLAYER_WALKING_SPEED;
-            const int anim_millis = is_running ? PLAYER_RUNNING_SPEED_ANIM_MILLIS : PLAYER_WALKING_SPEED_ANIM_MILLIS;
-            if (is_idle) {
-                if (now_in_millis % 2000 < 1500) {
-                    sprite_sheet_col = 0;
-                } else {
-                    sprite_sheet_col = 1;
-                }
-            } else {
-                if (now_in_millis % (anim_millis*2) < anim_millis) {
-                    sprite_sheet_col = 2;
-                } else {
-                    sprite_sheet_col = 3;
-                }
-            }
 
-            pos_diff = Vector2Scale(pos_diff_normalized, speed * GetFrameTime());
-
-            player.rect.x += pos_diff.x;
-            player.rect.y += pos_diff.y;
+            Vector2 new_pos = Vector2Scale(pos_diff_normalized, speed * GetFrameTime());
+            player.rect.x += new_pos.x;
+            player.rect.y += new_pos.y;
             
             // TODO: what the fuck
             float new_cam_x = player.rect.x - ((float)GetScreenWidth()/2.0f) + (player.rect.width/2.0f);
@@ -198,6 +176,36 @@ int main(void) {
                 Clamp(new_cam_x, 0.0f, MAP_WIDTH),
                 Clamp(new_cam_y, 0.0f, MAP_HEIGHT),
             };
+
+            { // Animation
+                if (IsKeyDown(KEY_UP)) {
+                    sprite_sheet_row = PLAYER_SPRITE_SHEET_UP_ROW;
+                } else if (IsKeyDown(KEY_DOWN) || (IsKeyDown(KEY_LEFT) && IsKeyDown(KEY_RIGHT))) {
+                    sprite_sheet_row = PLAYER_SPRITE_SHEET_DOWN_ROW;
+                } else if (IsKeyDown(KEY_LEFT)) {
+                    sprite_sheet_row = PLAYER_SPRITE_SHEET_LEFT_ROW;
+                } else if (IsKeyDown(KEY_RIGHT)) {
+                    sprite_sheet_row = PLAYER_SPRITE_SHEET_RIGHT_ROW;
+                }
+
+                // Movement animation frames
+                const int now_in_millis = (int)(GetTime() * 1000.0f);
+                const int anim_millis = is_running ? PLAYER_RUNNING_SPEED_ANIM_MILLIS : PLAYER_WALKING_SPEED_ANIM_MILLIS;
+                if (is_idle) {
+                    if (now_in_millis % 2000 < 1500) {
+                        sprite_sheet_col = 0;
+                    } else {
+                        sprite_sheet_col = 1;
+                    }
+                } else {
+                    if (now_in_millis % (anim_millis*2) < anim_millis) {
+                        sprite_sheet_col = 2;
+                    } else {
+                        sprite_sheet_col = 3;
+                    }
+                }
+            }
+
         }
 
         { // Draw
