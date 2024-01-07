@@ -6,6 +6,7 @@
 #include <complex.h>
 #include <math.h>
 
+// #define TRACELOG_DEBUG 1
 #include <raylib.h>
 #include <raymath.h>
 
@@ -115,6 +116,8 @@ int main(void) {
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
 
+    SetTraceLogLevel(LOG_ALL);
+
     GameState game_state;
     Camera2D camera;
 
@@ -150,7 +153,7 @@ int main(void) {
             .sprite_sheet_pos = (Vector2) { 32.0f, 0.0f },
         };
         Item watering_can = { 
-            .id = ITEM_ID_HOE,
+            .id = ITEM_ID_WATERING_CAN,
             .name = "Watering Can",
             .sprite_sheet_pos = (Vector2) { 0.0f, 0.0f },
         };
@@ -182,7 +185,7 @@ int main(void) {
 
     while (!WindowShouldClose()) {
         { // Update
-            { // Can be done regardless of pause state. 
+            { // Stuff that should be done regardless of pause state. 
                 if (IsKeyPressed(KEY_F1)) {
                     game_state.debug_mode = !game_state.debug_mode;
                 }
@@ -192,8 +195,8 @@ int main(void) {
                 }
             }
 
-            // The rest of the update should not happen if the game is paused. So, if we're paused
-            // at this point just jump to drawing.
+            // The rest of the update should not happen if the game is paused.
+            // So, if we're paused at this point just jump to drawing.
             if (game_state.paused) goto draw;
 
             Vector2 pos_diff_normalized = { 0 };
@@ -218,10 +221,32 @@ int main(void) {
             // TODO: what the fuck
             float new_cam_x = player.rect.x - ((float)GetScreenWidth()/2.0f) + (player.rect.width/2.0f);
             float new_cam_y = player.rect.y - ((float)GetScreenHeight()/2.0f) + (player.rect.height/2.0f);
-            camera.target = (Vector2) {
-                Clamp(new_cam_x, 0.0f, MAP_WIDTH),
-                Clamp(new_cam_y, 0.0f, MAP_HEIGHT),
-            };
+            camera.target = (Vector2) { Clamp(new_cam_x, 0.0f, MAP_WIDTH), Clamp(new_cam_y, 0.0f, MAP_HEIGHT) };
+
+            { // Items
+                if (IsKeyPressed(KEY_ONE)) inventory.selected_idx   = 0;
+                if (IsKeyPressed(KEY_TWO)) inventory.selected_idx   = 1;
+                if (IsKeyPressed(KEY_THREE)) inventory.selected_idx = 2;
+                if (IsKeyPressed(KEY_FOUR)) inventory.selected_idx  = 3;
+                if (IsKeyPressed(KEY_FIVE)) inventory.selected_idx  = 4;
+
+                if (IsKeyPressed(KEY_SPACE)) {
+                    switch (inventory.items[inventory.selected_idx].id) {
+                        case ITEM_ID_HOE: {
+                            TraceLog(LOG_DEBUG, "used hoe!");
+                            break;
+                        }
+                        case ITEM_ID_WATERING_CAN: {
+                            TraceLog(LOG_DEBUG, "used watering can!");
+                            break;
+                        }
+                        default: {
+                            TraceLog(LOG_ERROR, "tried to use a non-existent item");
+                            break;
+                        }
+                    }
+                }
+            }
 
             { // Animation
                 if (IsKeyDown(KEY_UP)) {
@@ -293,57 +318,60 @@ draw:       BeginDrawing();
             }
 
             { // Draw UI
-                // Draw hoe in inventory
-                DrawTexturePro(
-                    item_sprite_sheet,
-                    (Rectangle) {
-                        inventory.items[0].sprite_sheet_pos.x,
-                        inventory.items[0].sprite_sheet_pos.y,
-                        ITEM_SPRITE_SHEET_STRIDE,
-                        ITEM_SPRITE_SHEET_STRIDE,
-                    },
-                    (Rectangle) {
-                        inventory.rect.x,
-                        inventory.rect.y,
-                        ITEM_SPRITE_SCALE,
-                        ITEM_SPRITE_SCALE,
-                    },
-                    (Vector2) { 0 },
-                    0.0f,
-                    WHITE
-                );
+                { // Draw inventory
+                    DrawTexturePro(
+                        item_sprite_sheet,
+                        (Rectangle) {
+                            inventory.items[0].sprite_sheet_pos.x,
+                            inventory.items[0].sprite_sheet_pos.y,
+                            ITEM_SPRITE_SHEET_STRIDE,
+                            ITEM_SPRITE_SHEET_STRIDE,
+                        },
+                        (Rectangle) {
+                            inventory.rect.x,
+                            inventory.rect.y,
+                            ITEM_SPRITE_SCALE,
+                            ITEM_SPRITE_SCALE,
+                        },
+                        (Vector2) { 0 },
+                        0.0f,
+                        WHITE
+                    );
 
-                // Draw watering can in inventory
-                DrawTexturePro(
-                    item_sprite_sheet,
-                    (Rectangle) {
-                        inventory.items[1].sprite_sheet_pos.x,
-                        inventory.items[1].sprite_sheet_pos.y,
-                        ITEM_SPRITE_SHEET_STRIDE,
-                        ITEM_SPRITE_SHEET_STRIDE,
-                    },
-                    (Rectangle) {
-                        inventory.rect.x + (inventory.rect.width / 8),
-                        inventory.rect.y,
-                        ITEM_SPRITE_SCALE,
-                        ITEM_SPRITE_SCALE,
-                    },
-                    (Vector2) { 0 },
-                    0.0f,
-                    WHITE
-                );
-                
-                DrawRectangleLinesEx(
-                    (Rectangle) {
-                        inventory.rect.x + ((inventory.rect.width / INVENTORY_CAPACITY) * inventory.selected_idx),
-                        inventory.rect.y,
-                        inventory.rect.height,
-                        inventory.rect.height,
-                    },
-                    4.0f,
-                    WHITE
-                );
+                    // Draw watering can in inventory
+                    DrawTexturePro(
+                        item_sprite_sheet,
+                        (Rectangle) {
+                            inventory.items[1].sprite_sheet_pos.x,
+                            inventory.items[1].sprite_sheet_pos.y,
+                            ITEM_SPRITE_SHEET_STRIDE,
+                            ITEM_SPRITE_SHEET_STRIDE,
+                        },
+                        (Rectangle) {
+                            inventory.rect.x + (inventory.rect.width / INVENTORY_CAPACITY),
+                            inventory.rect.y,
+                            ITEM_SPRITE_SCALE,
+                            ITEM_SPRITE_SCALE,
+                        },
+                        (Vector2) { 0 },
+                        0.0f,
+                        WHITE
+                    );
+                    
+                    // Draw selected item in inventory
+                    DrawRectangleLinesEx(
+                        (Rectangle) {
+                            inventory.rect.x + ((inventory.rect.width / INVENTORY_CAPACITY) * inventory.selected_idx),
+                            inventory.rect.y,
+                            inventory.rect.height,
+                            inventory.rect.height,
+                        },
+                        4.0f,
+                        WHITE
+                    );
+                }
 
+                // Draw UI debug stuff
                 if (game_state.debug_mode) { 
                     DrawFPS(10, 10);
                     DrawRectangleLinesEx(inventory.rect, 1.0f, ORANGE);

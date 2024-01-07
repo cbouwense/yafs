@@ -6,7 +6,8 @@
     "stdlib.h": "c",
     "raylib.h": "c",
     "*.m": "c",
-    "raymath.h": "c"
-},
+    "raymath.h": "c",
+    "nob.h": "c"
+  },
   "cmake.configureOnOpen": false
 }
