@@ -108,15 +108,57 @@ typedef struct Inventory {
     Rectangle rect;
 } Inventory;
 
+typedef enum {
+    UP = 0,
+    DOWN,
+    LEFT,
+    RIGHT
+} Direction;
+
 typedef struct Character {
     Rectangle rect;
+    Direction dir;
 } Character;
 
 Vector2 get_player_pos(Character player) {
     return (Vector2) {
         player.rect.x + (player.rect.width / 2),
-        player.rect.y + player.rect.height - (player.rect.height / 5),
+        player.rect.y + player.rect.height - (player.rect.height / 4),
     };
+}
+
+Rectangle get_player_cell(Character player) {
+    return (Rectangle) {
+        get_player_pos(player).x - (float)((int)get_player_pos(player).x % (int)(MAP_CELL_SIZE * MAP_SCALE)),
+        get_player_pos(player).y - (float)((int)get_player_pos(player).y % (int)(MAP_CELL_SIZE * MAP_SCALE)),
+        MAP_CELL_SIZE * MAP_SCALE,
+        MAP_CELL_SIZE * MAP_SCALE,
+    };
+}
+
+Rectangle get_player_cell_is_facing(Character player) {
+    Rectangle result = get_player_cell(player);
+    
+    switch (player.dir) {
+        case UP: {
+            result.y -= (MAP_CELL_SIZE * MAP_SCALE);      
+            break;
+        }
+        case DOWN: {
+            result.y += (MAP_CELL_SIZE * MAP_SCALE);  
+            break;
+        }
+        case LEFT: {
+            result.x -= (MAP_CELL_SIZE * MAP_SCALE);  
+            break;
+        }
+        case RIGHT: {
+            result.x += (MAP_CELL_SIZE * MAP_SCALE);  
+            break;
+        }
+    }
+
+    return result;
 }
 
 int main(void) {
@@ -259,12 +301,16 @@ int main(void) {
             { // Animation
                 if (IsKeyDown(KEY_UP)) {
                     sprite_sheet_row = PLAYER_SPRITE_SHEET_UP_ROW;
+                    player.dir = UP;
                 } else if (IsKeyDown(KEY_DOWN) || (IsKeyDown(KEY_LEFT) && IsKeyDown(KEY_RIGHT))) {
                     sprite_sheet_row = PLAYER_SPRITE_SHEET_DOWN_ROW;
+                    player.dir = DOWN;
                 } else if (IsKeyDown(KEY_LEFT)) {
                     sprite_sheet_row = PLAYER_SPRITE_SHEET_LEFT_ROW;
+                    player.dir = LEFT;
                 } else if (IsKeyDown(KEY_RIGHT)) {
                     sprite_sheet_row = PLAYER_SPRITE_SHEET_RIGHT_ROW;
+                    player.dir = RIGHT;
                 }
 
                 // Movement animation frames
@@ -326,15 +372,10 @@ draw:       BeginDrawing();
                         DrawLine(i, 0, i+1, MAP_HEIGHT * MAP_SCALE, PINK);
                         DrawLine(0, i, MAP_WIDTH * MAP_SCALE, i+1, PINK);
                     }
-                    DrawRectangleRec(
-                        (Rectangle) {
-                            get_player_pos(player).x - (float)((int)get_player_pos(player).x % (int)(MAP_CELL_SIZE * MAP_SCALE)),
-                            get_player_pos(player).y - (float)((int)get_player_pos(player).y % (int)(MAP_CELL_SIZE * MAP_SCALE)),
-                            MAP_CELL_SIZE * MAP_SCALE,
-                            MAP_CELL_SIZE * MAP_SCALE,
-                        },
-                        RED
-                    );
+                    // Draw cell player is standing in
+                    DrawRectangleRec(get_player_cell(player), (Color) { 230, 41, 55, 64 });
+                    // Draw cell player is looking at
+                    DrawRectangleRec(get_player_cell_is_facing(player), (Color) { 55, 41, 230, 64 });
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
 
