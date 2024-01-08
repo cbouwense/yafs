@@ -12,11 +12,8 @@
 
 #define NOB_IMPLEMENTATION
 #include "nob.h"
-// #include "guppy.h"
+#include "guppy.h"
 
-#define GLSL_VERSION 330
-
-#define N (1<<13)
 #define FONT_SIZE_DEBUG 20
 #define FONT_SIZE 64
 
@@ -25,9 +22,14 @@
 #define WINDOW_INIT_WIDTH WINDOW_INIT_FACTOR * 16
 #define WINDOW_INIT_HEIGHT WINDOW_INIT_FACTOR * 9
 
-// TODO: don't actually use these? just testing
+// TODO: don't actually use these? just messing around with these numbers. Really
+// there should be some sort of relation between the camera and the scene or something.
 #define MAP_WIDTH 1280.0f
 #define MAP_HEIGHT 720.0f
+// TODO: I don't really understand how the math comes out to 60 x 43
+// ...........good enough for now ¯\_(ツ)_/¯
+#define MAP_ROWS 34 
+#define MAP_COLS 60
 
 #define CAMERA_ROTATION 0.0f
 #define CAMERA_ZOOM 1.0f
@@ -96,6 +98,11 @@ typedef struct GameState {
     bool paused;
 } GameState;
 
+typedef struct Cell {
+    int col;
+    int row;
+} Cell;
+
 typedef struct Item {
     int id;
     char name[256];
@@ -136,7 +143,7 @@ Rectangle get_player_cell(Character player) {
     };
 }
 
-Rectangle get_player_cell_is_facing(Character player) {
+Rectangle get_cell_player_is_facing(Character player) {
     Rectangle result = get_player_cell(player);
     
     switch (player.dir) {
@@ -167,7 +174,7 @@ int main(void) {
     SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
     InitAudioDevice();
-    SetTraceLogLevel(LOG_ALL);
+    SetTraceLogLevel(LOG_DEBUG);
 
     GameState game_state;
     Camera2D camera;
@@ -180,6 +187,8 @@ int main(void) {
     Texture2D item_sprite_sheet;
 
     Texture2D map;
+    GupArrayInt wet_cells = gup_array_int();
+    GupArrayInt tilled_cells = gup_array_int();
 
     { // Initialization
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
@@ -268,7 +277,7 @@ int main(void) {
             player.rect.x += new_pos.x;
             player.rect.y += new_pos.y;
             
-            // TODO: what the fuck
+            // TODO: what the fuck is this, redo this man
             float new_cam_x = player.rect.x - ((float)GetScreenWidth()/2.0f) + (player.rect.width/2.0f);
             float new_cam_y = player.rect.y - ((float)GetScreenHeight()/2.0f) + (player.rect.height/2.0f);
             camera.target = (Vector2) { Clamp(new_cam_x, 0.0f, MAP_WIDTH), Clamp(new_cam_y, 0.0f, MAP_HEIGHT) };
@@ -283,11 +292,25 @@ int main(void) {
                 if (IsKeyPressed(KEY_SPACE)) {
                     switch (inventory.items[inventory.selected_idx].id) {
                         case ITEM_ID_HOE: {
-                            TraceLog(LOG_DEBUG, "used hoe!");
+                            const Rectangle facing_cell_rect = get_cell_player_is_facing(player);
+                            const Cell facing_cell = {
+                                (int)facing_cell_rect.x / (int)(MAP_CELL_SIZE * MAP_SCALE),
+                                (int)facing_cell_rect.y / (int)(MAP_CELL_SIZE * MAP_SCALE)
+                            };
+                            const int facing_cell_id = facing_cell.col + (facing_cell.row * MAP_COLS);
+                            gup_array_int_append(&tilled_cells, facing_cell_id);
+                            gup_array_int_print(tilled_cells);
                             break;
                         }
                         case ITEM_ID_WATERING_CAN: {
-                            TraceLog(LOG_DEBUG, "used watering can!");
+                            const Rectangle facing_cell_rect = get_cell_player_is_facing(player);
+                            const Cell facing_cell = {
+                                (int)facing_cell_rect.x / (int)(MAP_CELL_SIZE * MAP_SCALE),
+                                (int)facing_cell_rect.y / (int)(MAP_CELL_SIZE * MAP_SCALE)
+                            };
+                            const int facing_cell_id = facing_cell.col + (facing_cell.row * MAP_COLS);
+                            gup_array_int_append(&wet_cells, facing_cell_id);
+                            gup_array_int_print(wet_cells);
                             break;
                         }
                         default: {
@@ -361,21 +384,20 @@ draw:       BeginDrawing();
                     (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
                     0.0f,
                     WHITE
-                ); 
-
-                // Draw cell that player is on
-                // DrawRectangleLinesEx()
+                );
 
                 // Draw game objects debug info
                 if (game_state.debug_mode) {
+                    // Draw world grid
                     for (int i = 0; i < MAP_WIDTH * MAP_SCALE; i += MAP_CELL_SIZE * MAP_SCALE) {
                         DrawLine(i, 0, i+1, MAP_HEIGHT * MAP_SCALE, PINK);
                         DrawLine(0, i, MAP_WIDTH * MAP_SCALE, i+1, PINK);
                     }
+
                     // Draw cell player is standing in
                     DrawRectangleRec(get_player_cell(player), (Color) { 230, 41, 55, 64 });
                     // Draw cell player is looking at
-                    DrawRectangleRec(get_player_cell_is_facing(player), (Color) { 55, 41, 230, 64 });
+                    DrawRectangleRec(get_cell_player_is_facing(player), (Color) { 55, 41, 230, 64 });
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
 
@@ -449,6 +471,8 @@ draw:       BeginDrawing();
 
     }
     
+    gup_array_int_free(wet_cells);
+
     UnloadTexture(player_sprite_sheet);
     CloseAudioDevice();
     CloseWindow();

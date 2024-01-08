@@ -7,7 +7,13 @@
     "raylib.h": "c",
     "*.m": "c",
     "raymath.h": "c",
-    "nob.h": "c"
+    "nob.h": "c",
+    "*.tcc": "c",
+    "compare": "c",
+    "random": "c",
+    "numeric": "c",
+    "array": "c",
+    "type_traits": "c"
   },
   "cmake.configureOnOpen": false
 }
