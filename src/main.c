@@ -168,6 +168,15 @@ Rectangle get_cell_player_is_facing(Character player) {
     return result;
 }
 
+int get_cell_id_player_is_facing(Character player) {
+    const Rectangle facing_cell_rect = get_cell_player_is_facing(player);
+    const Cell facing_cell = {
+        (int)facing_cell_rect.x / (int)(MAP_CELL_SIZE * MAP_SCALE),
+        (int)facing_cell_rect.y / (int)(MAP_CELL_SIZE * MAP_SCALE)
+    };
+    return facing_cell.col + (facing_cell.row * MAP_COLS);
+}
+
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(WINDOW_INIT_WIDTH, WINDOW_INIT_HEIGHT, "YAFS");
@@ -261,10 +270,10 @@ int main(void) {
             Vector2 pos_diff_normalized = { 0 };
             { // Movement
                 Vector2 pos_diff = { 0 };
-                if (IsKeyDown(KEY_LEFT)) pos_diff.x--;
+                if (IsKeyDown(KEY_LEFT))  pos_diff.x--;
                 if (IsKeyDown(KEY_RIGHT)) pos_diff.x++;
-                if (IsKeyDown(KEY_UP)) pos_diff.y--;
-                if (IsKeyDown(KEY_DOWN)) pos_diff.y++;
+                if (IsKeyDown(KEY_UP))    pos_diff.y--;
+                if (IsKeyDown(KEY_DOWN))  pos_diff.y++;
 
                 pos_diff_normalized = Vector2Normalize(pos_diff);
             }
@@ -292,25 +301,13 @@ int main(void) {
                 if (IsKeyPressed(KEY_SPACE)) {
                     switch (inventory.items[inventory.selected_idx].id) {
                         case ITEM_ID_HOE: {
-                            const Rectangle facing_cell_rect = get_cell_player_is_facing(player);
-                            const Cell facing_cell = {
-                                (int)facing_cell_rect.x / (int)(MAP_CELL_SIZE * MAP_SCALE),
-                                (int)facing_cell_rect.y / (int)(MAP_CELL_SIZE * MAP_SCALE)
-                            };
-                            const int facing_cell_id = facing_cell.col + (facing_cell.row * MAP_COLS);
-                            gup_array_int_append(&tilled_cells, facing_cell_id);
-                            gup_array_int_print(tilled_cells);
+                            gup_array_int_append(&tilled_cells, get_cell_id_player_is_facing(player));
+                            if (game_state.debug_mode) gup_array_int_print(tilled_cells);
                             break;
                         }
                         case ITEM_ID_WATERING_CAN: {
-                            const Rectangle facing_cell_rect = get_cell_player_is_facing(player);
-                            const Cell facing_cell = {
-                                (int)facing_cell_rect.x / (int)(MAP_CELL_SIZE * MAP_SCALE),
-                                (int)facing_cell_rect.y / (int)(MAP_CELL_SIZE * MAP_SCALE)
-                            };
-                            const int facing_cell_id = facing_cell.col + (facing_cell.row * MAP_COLS);
-                            gup_array_int_append(&wet_cells, facing_cell_id);
-                            gup_array_int_print(wet_cells);
+                            gup_array_int_append(&wet_cells, get_cell_id_player_is_facing(player));
+                            if (game_state.debug_mode) gup_array_int_print(wet_cells);
                             break;
                         }
                         default: {
@@ -385,6 +382,31 @@ draw:       BeginDrawing();
                     0.0f,
                     WHITE
                 );
+
+                // Draw wet cells
+                for (int i = 0; i < wet_cells.count; i++) {
+                    const float x = (wet_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
+                    const float y = (wet_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
+                    DrawRectangle(
+                        x,
+                        y,
+                        MAP_CELL_SIZE * MAP_SCALE,
+                        MAP_CELL_SIZE * MAP_SCALE,
+                        (Color) { 55, 41, 230, 64 }
+                    );
+                }
+                // Draw tilled cells
+                for (int i = 0; i < tilled_cells.count; i++) {
+                    const float x = (tilled_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
+                    const float y = (tilled_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
+                    DrawRectangle(
+                        x,
+                        y,
+                        MAP_CELL_SIZE * MAP_SCALE,
+                        MAP_CELL_SIZE * MAP_SCALE,
+                        (Color) { 230, 41, 55, 64 }
+                    );
+                }
 
                 // Draw game objects debug info
                 if (game_state.debug_mode) {
