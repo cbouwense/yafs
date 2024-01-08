@@ -37,6 +37,9 @@
 #define MAP_SCALE 3.0f
 #define MAP_CELL_SIZE 16.0f
 
+#define PLANTS_SPRITE_SCALE 3.0f
+#define PLANTS_SPRITE_SHEET_STRIDE 16.0f
+
 #define PLAYER_SPRITE_SCALE 3.0f
 #define PLAYER_WIDTH 64.0f
 #define PLAYER_HEIGHT 64.0f
@@ -190,22 +193,24 @@ int main(void) {
 
     Character player;
     Texture2D player_sprite_sheet;
-    int sprite_sheet_row, sprite_sheet_col;
+    int player_sprite_sheet_row, player_sprite_sheet_col;
     
     Inventory inventory;
     Texture2D item_sprite_sheet;
 
     Texture2D map;
+    Texture2D plants_sprite_sheet;
     GupArrayInt wet_cells = gup_array_int();
     GupArrayInt tilled_cells = gup_array_int();
 
     { // Initialization
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
         map = LoadTexture("resources/tilesets/map.png");
+        plants_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_Plants.png");
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
 
-        sprite_sheet_row = 0;
-        sprite_sheet_col = 0;
+        player_sprite_sheet_row = 0;
+        player_sprite_sheet_col = 0;
 
         game_state = (GameState) {
             .debug_mode = false,
@@ -320,16 +325,16 @@ int main(void) {
 
             { // Animation
                 if (IsKeyDown(KEY_UP)) {
-                    sprite_sheet_row = PLAYER_SPRITE_SHEET_UP_ROW;
+                    player_sprite_sheet_row = PLAYER_SPRITE_SHEET_UP_ROW;
                     player.dir = UP;
                 } else if (IsKeyDown(KEY_DOWN) || (IsKeyDown(KEY_LEFT) && IsKeyDown(KEY_RIGHT))) {
-                    sprite_sheet_row = PLAYER_SPRITE_SHEET_DOWN_ROW;
+                    player_sprite_sheet_row = PLAYER_SPRITE_SHEET_DOWN_ROW;
                     player.dir = DOWN;
                 } else if (IsKeyDown(KEY_LEFT)) {
-                    sprite_sheet_row = PLAYER_SPRITE_SHEET_LEFT_ROW;
+                    player_sprite_sheet_row = PLAYER_SPRITE_SHEET_LEFT_ROW;
                     player.dir = LEFT;
                 } else if (IsKeyDown(KEY_RIGHT)) {
-                    sprite_sheet_row = PLAYER_SPRITE_SHEET_RIGHT_ROW;
+                    player_sprite_sheet_row = PLAYER_SPRITE_SHEET_RIGHT_ROW;
                     player.dir = RIGHT;
                 }
 
@@ -338,15 +343,15 @@ int main(void) {
                 const int anim_millis = is_running ? PLAYER_RUNNING_SPEED_ANIM_MILLIS : PLAYER_WALKING_SPEED_ANIM_MILLIS;
                 if (is_idle) {
                     if (now_in_millis % 2000 < 1500) {
-                        sprite_sheet_col = 0;
+                        player_sprite_sheet_col = 0;
                     } else {
-                        sprite_sheet_col = 1;
+                        player_sprite_sheet_col = 1;
                     }
                 } else {
                     if (now_in_millis % (anim_millis*2) < anim_millis) {
-                        sprite_sheet_col = 2;
+                        player_sprite_sheet_col = 2;
                     } else {
-                        sprite_sheet_col = 3;
+                        player_sprite_sheet_col = 3;
                     }
                 }
             }
@@ -362,26 +367,6 @@ draw:       BeginDrawing();
 
                 // Draw map
                 DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, MAP_SCALE, WHITE);
-
-                // Draw player
-                DrawTexturePro(
-                    player_sprite_sheet,
-                    (Rectangle) {
-                        sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
-                        sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
-                        PLAYER_SPRITE_SHEET_STRIDE,
-                        PLAYER_SPRITE_SHEET_STRIDE,
-                    },
-                    (Rectangle) {
-                        player.rect.x,
-                        player.rect.y,
-                        PLAYER_WIDTH * PLAYER_SPRITE_SCALE,
-                        PLAYER_HEIGHT * PLAYER_SPRITE_SCALE,
-                    },
-                    (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
-                    0.0f,
-                    WHITE
-                );
 
                 // Draw wet cells
                 for (int i = 0; i < wet_cells.count; i++) {
@@ -399,12 +384,13 @@ draw:       BeginDrawing();
                 for (int i = 0; i < tilled_cells.count; i++) {
                     const float x = (tilled_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
                     const float y = (tilled_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
-                    DrawRectangle(
-                        x,
-                        y,
-                        MAP_CELL_SIZE * MAP_SCALE,
-                        MAP_CELL_SIZE * MAP_SCALE,
-                        (Color) { 230, 41, 55, 64 }
+                    DrawTexturePro(
+                        plants_sprite_sheet,
+                        (Rectangle) { 16.0f, 0.0f, PLANTS_SPRITE_SHEET_STRIDE, PLANTS_SPRITE_SHEET_STRIDE },
+                        (Rectangle) { x, y, MAP_CELL_SIZE * MAP_SCALE, MAP_CELL_SIZE * MAP_SCALE },
+                        (Vector2) { 0, 0 },
+                        0.0f,
+                        WHITE
                     );
                 }
 
@@ -422,6 +408,26 @@ draw:       BeginDrawing();
                     DrawRectangleRec(get_cell_player_is_facing(player), (Color) { 55, 41, 230, 64 });
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
+
+                // Draw player
+                DrawTexturePro(
+                    player_sprite_sheet,
+                    (Rectangle) {
+                        player_sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
+                        player_sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
+                        PLAYER_SPRITE_SHEET_STRIDE,
+                        PLAYER_SPRITE_SHEET_STRIDE,
+                    },
+                    (Rectangle) {
+                        player.rect.x,
+                        player.rect.y,
+                        PLAYER_WIDTH * PLAYER_SPRITE_SCALE,
+                        PLAYER_HEIGHT * PLAYER_SPRITE_SCALE,
+                    },
+                    (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
+                    0.0f,
+                    WHITE
+                );
 
                 EndMode2D();
             }

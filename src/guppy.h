@@ -1524,8 +1524,8 @@ defer:
  * He uses the MIT license, so it's all good. Check out his repo here: https://github.com/tsoding/sv
  */
 
-#define SV(cstr_lit) sv_from_parts(cstr_lit, sizeof(cstr_lit) - 1)
-#define SV_STATIC(cstr_lit)   \
+#define GUP_SV(cstr_lit) sv_from_parts(cstr_lit, sizeof(cstr_lit) - 1)
+#define GUP_SV_STATIC(cstr_lit)   \
     {                         \
         sizeof(cstr_lit) - 1, \
         (cstr_lit)            \
@@ -1534,8 +1534,8 @@ defer:
 #define SV_NULL sv_from_parts(NULL, 0)
 
 // printf macros for String_View
-#define SV_Fmt "%.*s"
-#define SV_Arg(sv) (int) (sv).length, (sv).data
+#define GUP_SV_Fmt "%.*s"
+#define GUP_SV_Arg(sv) (int) (sv).length, (sv).data
 /* 
  * USAGE:
  *   String_View name = ...;
