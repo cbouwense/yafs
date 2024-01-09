@@ -38,6 +38,7 @@
 #define MAP_CELL_SIZE 16.0f
 
 #define PLANTS_SPRITE_SCALE 3.0f
+// The "stride" is how wide a sprite is on the sprite sheet
 #define PLANTS_SPRITE_SHEET_STRIDE 16.0f
 
 #define PLAYER_SPRITE_SCALE 3.0f
@@ -102,8 +103,8 @@ typedef struct GameState {
 } GameState;
 
 typedef struct Cell {
-    int col;
-    int row;
+    int x; // col
+    int y; // row
 } Cell;
 
 typedef struct Item {
@@ -146,7 +147,7 @@ Rectangle get_player_cell(Character player) {
     };
 }
 
-Rectangle get_cell_player_is_facing(Character player) {
+Rectangle get_cell_rect_player_is_facing(Character player) {
     Rectangle result = get_player_cell(player);
     
     switch (player.dir) {
@@ -171,13 +172,56 @@ Rectangle get_cell_player_is_facing(Character player) {
     return result;
 }
 
-int get_cell_id_player_is_facing(Character player) {
-    const Rectangle facing_cell_rect = get_cell_player_is_facing(player);
-    const Cell facing_cell = {
+void print_cell(const Cell cell) {
+    TraceLog(LOG_DEBUG, TextFormat("cell: (%d, %d)", cell.x, cell.y));
+}
+
+Cell get_cell_player_is_facing(Character player) {
+    const Rectangle facing_cell_rect = get_cell_rect_player_is_facing(player);
+    const Cell result = {
         (int)facing_cell_rect.x / (int)(MAP_CELL_SIZE * MAP_SCALE),
         (int)facing_cell_rect.y / (int)(MAP_CELL_SIZE * MAP_SCALE)
     };
-    return facing_cell.col + (facing_cell.row * MAP_COLS);
+    return result;
+}
+
+int get_cell_id_player_is_facing(Character player) {
+    const Cell facing_cell = get_cell_player_is_facing(player);
+    return facing_cell.x + (facing_cell.y * MAP_COLS);
+}
+
+bool is_cell_in_grid(Cell needle, Cell haystack, int cols, int rows) {
+    if (cols == 0 || rows == 0) return false;
+    if (needle.x < haystack.x || needle.y < haystack.y) return false;
+    if (needle.x >= haystack.x + cols) return false;
+    if (needle.y >= haystack.y + rows) return false;
+    
+    return true;
+}
+
+Cell cell_id_to_cell(const int cell_id) {
+    return (Cell) { cell_id % MAP_COLS, cell_id / MAP_COLS };
+}
+
+int cell_to_cell_id(const Cell cell) {
+    return cell.x + (cell.y * MAP_COLS);
+}
+
+bool player_is_facing_farmable_cell(Character player) {
+    const Cell cell = get_cell_player_is_facing(player);
+
+    // TODO: hardcoding these for now. Ideally we could somehow parse this from the tilemap.
+    return (
+        is_cell_in_grid(cell, cell_id_to_cell(793), 4, 4)  ||
+        is_cell_in_grid(cell, cell_id_to_cell(799), 4, 4)  ||
+        is_cell_in_grid(cell, cell_id_to_cell(805), 4, 4)  ||
+        is_cell_in_grid(cell, cell_id_to_cell(1153), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(1159), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(1165), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(1513), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(1519), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(1525), 4, 4)
+    );
 }
 
 int main(void) {
@@ -202,6 +246,7 @@ int main(void) {
     Texture2D plants_sprite_sheet;
     GupArrayInt wet_cells = gup_array_int();
     GupArrayInt tilled_cells = gup_array_int();
+    GupArrayDouble tilled_cell_planted_at = gup_array_double();
 
     { // Initialization
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
@@ -306,11 +351,28 @@ int main(void) {
                 if (IsKeyPressed(KEY_SPACE)) {
                     switch (inventory.items[inventory.selected_idx].id) {
                         case ITEM_ID_HOE: {
-                            gup_array_int_append(&tilled_cells, get_cell_id_player_is_facing(player));
-                            if (game_state.debug_mode) gup_array_int_print(tilled_cells);
+                            // TODO: animation
+
+                            const int cell_id = get_cell_id_player_is_facing(player);
+                            if (!player_is_facing_farmable_cell(player)) break;
+                            if (gup_array_int_has(tilled_cells, cell_id)) break;
+
+                            gup_array_int_append(&tilled_cells, cell_id);
+                            gup_array_double_append(&tilled_cell_planted_at, GetTime());
+                            if (game_state.debug_mode) {
+                                gup_array_int_print(tilled_cells);
+                                gup_array_double_print(tilled_cell_planted_at);
+                            }
+
                             break;
                         }
                         case ITEM_ID_WATERING_CAN: {
+                            // TODO: animation
+                            const int cell_id = get_cell_id_player_is_facing(player);
+
+                            if (!player_is_facing_farmable_cell(player)) break;
+                            if (gup_array_int_has(wet_cells, cell_id)) break;
+
                             gup_array_int_append(&wet_cells, get_cell_id_player_is_facing(player));
                             if (game_state.debug_mode) gup_array_int_print(wet_cells);
                             break;
@@ -377,16 +439,26 @@ draw:       BeginDrawing();
                         y,
                         MAP_CELL_SIZE * MAP_SCALE,
                         MAP_CELL_SIZE * MAP_SCALE,
-                        (Color) { 55, 41, 230, 64 }
+                        (Color) { 0, 0, 64, 32 }
                     );
                 }
                 // Draw tilled cells
                 for (int i = 0; i < tilled_cells.count; i++) {
                     const float x = (tilled_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
                     const float y = (tilled_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
+                    float plant_sprite_sheet_x = 16.0f;
+                    if (GetTime() - tilled_cell_planted_at.data[i] > 5.0) {
+                        plant_sprite_sheet_x = 32.0f;
+                    }
+                    if (GetTime() - tilled_cell_planted_at.data[i] > 10.0) {
+                        plant_sprite_sheet_x = 48.0f;
+                    }
+                    if (GetTime() - tilled_cell_planted_at.data[i] > 15.0) {
+                        plant_sprite_sheet_x = 64.0f;
+                    }
                     DrawTexturePro(
                         plants_sprite_sheet,
-                        (Rectangle) { 16.0f, 0.0f, PLANTS_SPRITE_SHEET_STRIDE, PLANTS_SPRITE_SHEET_STRIDE },
+                        (Rectangle) { plant_sprite_sheet_x, 0.0f, PLANTS_SPRITE_SHEET_STRIDE, PLANTS_SPRITE_SHEET_STRIDE },
                         (Rectangle) { x, y, MAP_CELL_SIZE * MAP_SCALE, MAP_CELL_SIZE * MAP_SCALE },
                         (Vector2) { 0, 0 },
                         0.0f,
@@ -404,8 +476,6 @@ draw:       BeginDrawing();
 
                     // Draw cell player is standing in
                     DrawRectangleRec(get_player_cell(player), (Color) { 230, 41, 55, 64 });
-                    // Draw cell player is looking at
-                    DrawRectangleRec(get_cell_player_is_facing(player), (Color) { 55, 41, 230, 64 });
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
 
@@ -428,6 +498,9 @@ draw:       BeginDrawing();
                     0.0f,
                     WHITE
                 );
+
+                // Draw cell player is looking at
+                DrawRectangleRec(get_cell_rect_player_is_facing(player), (Color) { 55, 41, 230, 64 });
 
                 EndMode2D();
             }
