@@ -10,11 +10,18 @@
     "fileStates": {
         "dirt.tsx": {
             "scaleInDock": 2,
-            "scaleInEditor": 4
+            "scaleInEditor": 2
         },
         "grass.tsx": {
             "scaleInDock": 1,
-            "scaleInEditor": 4
+            "scaleInEditor": 2
+        },
+        "hills.tsx": {
+            "scaleInEditor": 2
+        },
+        "house.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         },
         "map.tmx": {
             "scale": 2,
@@ -24,12 +31,16 @@
                 "y": 325.5
             }
         },
-        "water.tsx": {
+        "paths.tsx": {
             "scaleInDock": 4,
             "scaleInEditor": 4
+        },
+        "water.tsx": {
+            "scaleInDock": 4,
+            "scaleInEditor": 2
         }
     },
-    "last.imagePath": "/home/guppy/Projects/yafs/resources/sprout-lands-sprites/Tilesets",
+    "last.imagePath": "/home/guppy/Projects/yafs/resources/sprout-lands-sprites/Objects",
     "map.height": 40,
     "map.lastUsedFormat": "tmx",
     "map.tileHeight": 16,
@@ -43,6 +54,9 @@
     ],
     "project": "yafs.tiled-project",
     "recentFiles": [
+        "paths.tsx",
+        "house.tsx",
+        "hills.tsx",
         "dirt.tsx",
         "water.tsx",
         "grass.tsx",

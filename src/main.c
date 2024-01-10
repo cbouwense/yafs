@@ -6,7 +6,6 @@
 #include <complex.h>
 #include <math.h>
 
-// #define TRACELOG_DEBUG 1
 #include <raylib.h>
 #include <raymath.h>
 
@@ -17,25 +16,17 @@
 #define FONT_SIZE_DEBUG 20
 #define FONT_SIZE 64
 
-#define COLOR_BACKGROUND WHITE
-#define WINDOW_INIT_FACTOR 100
-#define WINDOW_INIT_WIDTH WINDOW_INIT_FACTOR * 16
-#define WINDOW_INIT_HEIGHT WINDOW_INIT_FACTOR * 9
-
-// TODO: don't actually use these? just messing around with these numbers. Really
-// there should be some sort of relation between the camera and the scene or something.
-#define MAP_WIDTH 1280.0f
-#define MAP_HEIGHT 720.0f
-// TODO: I don't really understand how the math comes out to 60 x 43
-// ...........good enough for now ¯\_(ツ)_/¯
-#define MAP_ROWS 34 
-#define MAP_COLS 60
-
-#define CAMERA_ROTATION 0.0f
-#define CAMERA_ZOOM 1.0f
-
 #define MAP_SCALE 3.0f
 #define MAP_CELL_SIZE 16.0f
+#define MAP_COLS 30
+#define MAP_ROWS 24 
+#define MAP_WIDTH (float)MAP_COLS * MAP_CELL_SIZE * MAP_SCALE
+#define MAP_HEIGHT (float)MAP_ROWS * MAP_CELL_SIZE * MAP_SCALE
+
+#define COLOR_BACKGROUND WHITE
+#define WINDOW_INIT_WIDTH MAP_WIDTH
+#define WINDOW_INIT_HEIGHT MAP_HEIGHT
+
 
 #define PLANTS_SPRITE_SCALE 3.0f
 // The "stride" is how wide a sprite is on the sprite sheet
@@ -134,6 +125,8 @@ typedef struct Character {
 Vector2 get_player_pos(Character player) {
     return (Vector2) {
         player.rect.x + (player.rect.width / 2),
+        // The feet are closer to the bottom of the sprite than the middle. So only chop off a
+        // quarter of the sprite, not half like a first impression may elicit.
         player.rect.y + player.rect.height - (player.rect.height / 4),
     };
 }
@@ -212,20 +205,15 @@ bool player_is_facing_farmable_cell(Character player) {
 
     // TODO: hardcoding these for now. Ideally we could somehow parse this from the tilemap.
     return (
-        is_cell_in_grid(cell, cell_id_to_cell(793), 4, 4)  ||
-        is_cell_in_grid(cell, cell_id_to_cell(799), 4, 4)  ||
-        is_cell_in_grid(cell, cell_id_to_cell(805), 4, 4)  ||
-        is_cell_in_grid(cell, cell_id_to_cell(1153), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(1159), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(1165), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(1513), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(1519), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(1525), 4, 4)
+        is_cell_in_grid(cell, cell_id_to_cell(280), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(286), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(460), 4, 4) ||
+        is_cell_in_grid(cell, cell_id_to_cell(466), 4, 4)
     );
 }
 
 int main(void) {
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    // SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(WINDOW_INIT_WIDTH, WINDOW_INIT_HEIGHT, "YAFS");
     SetTargetFPS(144);
     SetExitKey(KEY_ESCAPE);
@@ -233,7 +221,6 @@ int main(void) {
     SetTraceLogLevel(LOG_DEBUG);
 
     GameState game_state;
-    Camera2D camera;
 
     Character player;
     Texture2D player_sprite_sheet;
@@ -250,7 +237,7 @@ int main(void) {
 
     { // Initialization
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
-        map = LoadTexture("resources/tilesets/map.png");
+        map = LoadTexture("resources/tilesets/map2.png");
         plants_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_Plants.png");
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
 
@@ -292,13 +279,6 @@ int main(void) {
                 .height = vh(10.0f),
             },
         };
-
-        camera = (Camera2D) {
-            .offset = { 0 },
-            .rotation = CAMERA_ROTATION,
-            .target = (Vector2) { player.rect.x, player.rect.y },
-            .zoom = CAMERA_ZOOM,
-        };
     }
 
     while (!WindowShouldClose()) {
@@ -332,14 +312,19 @@ int main(void) {
             const bool is_running = !is_idle && IsKeyDown(KEY_LEFT_SHIFT);
             const float speed = is_running ? PLAYER_RUNNING_SPEED : PLAYER_WALKING_SPEED;
 
-            Vector2 new_pos = Vector2Scale(pos_diff_normalized, speed * GetFrameTime());
-            player.rect.x += new_pos.x;
-            player.rect.y += new_pos.y;
-            
-            // TODO: what the fuck is this, redo this man
-            float new_cam_x = player.rect.x - ((float)GetScreenWidth()/2.0f) + (player.rect.width/2.0f);
-            float new_cam_y = player.rect.y - ((float)GetScreenHeight()/2.0f) + (player.rect.height/2.0f);
-            camera.target = (Vector2) { Clamp(new_cam_x, 0.0f, MAP_WIDTH), Clamp(new_cam_y, 0.0f, MAP_HEIGHT) };
+            Vector2 scaled_pos_diff = Vector2Scale(pos_diff_normalized, speed * GetFrameTime());
+            Vector2 new_pos = {
+                .x = player.rect.x + scaled_pos_diff.x,
+                .y = player.rect.y + scaled_pos_diff.y
+            };
+
+            // TODO: hardcoding these for now. Ideally this would be parsed from the map.
+            if (new_pos.x > MAP_CELL_SIZE * MAP_SCALE * 4.0f && new_pos.x < MAP_WIDTH - (MAP_CELL_SIZE * MAP_SCALE * 4.0f) - player.rect.width) {
+                player.rect.x = new_pos.x;
+            }
+            if (new_pos.y > MAP_CELL_SIZE * MAP_SCALE * 4.0f && new_pos.y < MAP_HEIGHT - player.rect.height) {
+                player.rect.y = new_pos.y;
+            }
 
             { // Items
                 if (IsKeyPressed(KEY_ONE)) inventory.selected_idx   = 0;
@@ -368,8 +353,8 @@ int main(void) {
                         }
                         case ITEM_ID_WATERING_CAN: {
                             // TODO: animation
-                            const int cell_id = get_cell_id_player_is_facing(player);
 
+                            const int cell_id = get_cell_id_player_is_facing(player);
                             if (!player_is_facing_farmable_cell(player)) break;
                             if (gup_array_int_has(wet_cells, cell_id)) break;
 
@@ -425,8 +410,6 @@ draw:       BeginDrawing();
             ClearBackground(COLOR_BACKGROUND);
 
             { // Draw world objects
-                BeginMode2D(camera);
-
                 // Draw map
                 DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, MAP_SCALE, WHITE);
 
@@ -501,8 +484,6 @@ draw:       BeginDrawing();
 
                 // Draw cell player is looking at
                 DrawRectangleRec(get_cell_rect_player_is_facing(player), (Color) { 55, 41, 230, 64 });
-
-                EndMode2D();
             }
 
             { // Draw UI
