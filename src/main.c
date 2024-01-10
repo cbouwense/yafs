@@ -46,9 +46,9 @@
 #define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
 #define PLAYER_RUNNING_SPEED_ANIM_MILLIS 100
 
-#define INVENTORY_CAPACITY 8
+#define INVENTORY_CAPACITY 5
 
-#define ITEM_SPRITE_SCALE 75.0f
+#define ITEM_SPRITE_SCALE 100.0f
 // The "stride" is how wide a sprite is on the sprite sheet
 #define ITEM_SPRITE_SHEET_STRIDE 16.0f
 #define ITEM_ID_HOE 0
@@ -487,7 +487,7 @@ draw:       BeginDrawing();
             }
 
             { // Draw UI
-                { // Draw inventory
+                { // Draw hoe in inventory
                     DrawTexturePro(
                         item_sprite_sheet,
                         (Rectangle) {
