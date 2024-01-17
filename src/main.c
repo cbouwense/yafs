@@ -32,6 +32,9 @@
 // The "stride" is how wide a sprite is on the sprite sheet
 #define PLANTS_SPRITE_SHEET_STRIDE 16.0f
 
+#define CHICKEN_SPRITE_SHEET_STRIDE 16.0f
+#define CHICKEN_WALKING_SPEED 50.0f
+
 #define PLAYER_SPRITE_SCALE 3.0f
 #define PLAYER_WIDTH 64.0f
 #define PLAYER_HEIGHT 64.0f
@@ -51,8 +54,9 @@
 #define ITEM_SPRITE_SCALE 100.0f
 // The "stride" is how wide a sprite is on the sprite sheet
 #define ITEM_SPRITE_SHEET_STRIDE 16.0f
-#define ITEM_ID_HOE 0
+#define ITEM_ID_SEEDS 0
 #define ITEM_ID_WATERING_CAN 1
+#define ITEM_ID_SCYTHE 2
 
 // CSS-like helpers --------------------------------------------------------------------------------
 
@@ -122,7 +126,7 @@ typedef struct Character {
     Direction dir;
 } Character;
 
-Vector2 get_player_pos(Character player) {
+Vector2 get_character_pos(Character player) {
     return (Vector2) {
         player.rect.x + (player.rect.width / 2),
         // The feet are closer to the bottom of the sprite than the middle. So only chop off a
@@ -131,17 +135,17 @@ Vector2 get_player_pos(Character player) {
     };
 }
 
-Rectangle get_player_cell(Character player) {
+Rectangle get_character_cell_rect(Character player) {
     return (Rectangle) {
-        get_player_pos(player).x - (float)((int)get_player_pos(player).x % (int)(MAP_CELL_SIZE * MAP_SCALE)),
-        get_player_pos(player).y - (float)((int)get_player_pos(player).y % (int)(MAP_CELL_SIZE * MAP_SCALE)),
+        get_character_pos(player).x - (float)((int)get_character_pos(player).x % (int)(MAP_CELL_SIZE * MAP_SCALE)),
+        get_character_pos(player).y - (float)((int)get_character_pos(player).y % (int)(MAP_CELL_SIZE * MAP_SCALE)),
         MAP_CELL_SIZE * MAP_SCALE,
         MAP_CELL_SIZE * MAP_SCALE,
     };
 }
 
-Rectangle get_cell_rect_player_is_facing(Character player) {
-    Rectangle result = get_player_cell(player);
+Rectangle get_cell_rect_character_is_facing(Character player) {
+    Rectangle result = get_character_cell_rect(player);
     
     switch (player.dir) {
         case UP: {
@@ -170,7 +174,7 @@ void print_cell(const Cell cell) {
 }
 
 Cell get_cell_player_is_facing(Character player) {
-    const Rectangle facing_cell_rect = get_cell_rect_player_is_facing(player);
+    const Rectangle facing_cell_rect = get_cell_rect_character_is_facing(player);
     const Cell result = {
         (int)facing_cell_rect.x / (int)(MAP_CELL_SIZE * MAP_SCALE),
         (int)facing_cell_rect.y / (int)(MAP_CELL_SIZE * MAP_SCALE)
@@ -183,7 +187,7 @@ int get_cell_id_player_is_facing(Character player) {
     return facing_cell.x + (facing_cell.y * MAP_COLS);
 }
 
-bool is_cell_in_grid(Cell needle, Cell haystack, int cols, int rows) {
+bool is_cell_in_area(Cell needle, Cell haystack, int cols, int rows) {
     if (cols == 0 || rows == 0) return false;
     if (needle.x < haystack.x || needle.y < haystack.y) return false;
     if (needle.x >= haystack.x + cols) return false;
@@ -205,10 +209,10 @@ bool player_is_facing_farmable_cell(Character player) {
 
     // TODO: hardcoding these for now. Ideally we could somehow parse this from the tilemap.
     return (
-        is_cell_in_grid(cell, cell_id_to_cell(280), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(286), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(460), 4, 4) ||
-        is_cell_in_grid(cell, cell_id_to_cell(466), 4, 4)
+        is_cell_in_area(cell, cell_id_to_cell(280), 4, 4) ||
+        is_cell_in_area(cell, cell_id_to_cell(286), 4, 4) ||
+        is_cell_in_area(cell, cell_id_to_cell(460), 4, 4) ||
+        is_cell_in_area(cell, cell_id_to_cell(466), 4, 4)
     );
 }
 
@@ -222,6 +226,7 @@ int main(void) {
 
     GameState game_state;
 
+    Character chicken;
     Character player;
     Texture2D player_sprite_sheet;
     int player_sprite_sheet_row, player_sprite_sheet_col;
@@ -231,15 +236,17 @@ int main(void) {
 
     Texture2D map;
     Texture2D plants_sprite_sheet;
+    Texture2D chicken_sprite_sheet;
     GupArrayInt wet_cells = gup_array_int();
-    GupArrayInt tilled_cells = gup_array_int();
-    GupArrayDouble tilled_cell_planted_at = gup_array_double();
+    GupArrayInt planted_cells = gup_array_int();
+    GupArrayDouble planted_cells_planted_at = gup_array_double();
 
     { // Initialization
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
         map = LoadTexture("resources/tilesets/map2.png");
         plants_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_Plants.png");
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
+        chicken_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/free-chicken-sprites.png");
 
         player_sprite_sheet_row = 0;
         player_sprite_sheet_col = 0;
@@ -258,19 +265,33 @@ int main(void) {
             }
         };
 
-        Item hoe = { 
-            .id = ITEM_ID_HOE,
-            .name = "Hoe",
-            .sprite_sheet_pos = (Vector2) { 32.0f, 0.0f },
+        chicken = (Character) {
+            .rect = (Rectangle) {
+                .x = vw(25),
+                .y = vh(25),
+                .width = PLAYER_WIDTH,
+                .height = PLAYER_HEIGHT,
+            }
+        };
+
+        Item seeds = { 
+            .id = ITEM_ID_SEEDS,
+            .name = "Seeds",
+            .sprite_sheet_pos = (Vector2) { 0.0f, 0.0f },
         };
         Item watering_can = { 
             .id = ITEM_ID_WATERING_CAN,
             .name = "Watering Can",
             .sprite_sheet_pos = (Vector2) { 0.0f, 0.0f },
         };
+        Item scythe = { 
+            .id = ITEM_ID_SCYTHE,
+            .name = "Scythe",
+            .sprite_sheet_pos = (Vector2) { 32.0f, 0.0f },
+        };
 
         inventory = (Inventory) {
-            .items = { hoe, watering_can },
+            .items = { seeds, watering_can, scythe },
             .selected_idx = 0,
             .rect = (Rectangle) {
                 .x = vw(25.0f),
@@ -335,23 +356,34 @@ int main(void) {
 
                 if (IsKeyPressed(KEY_SPACE)) {
                     switch (inventory.items[inventory.selected_idx].id) {
-                        case ITEM_ID_HOE: {
+                        case ITEM_ID_SEEDS: {
                             // TODO: animation
 
                             const int cell_id = get_cell_id_player_is_facing(player);
                             if (!player_is_facing_farmable_cell(player)) break;
-                            if (gup_array_int_has(tilled_cells, cell_id)) break;
+                            if (gup_array_int_has(planted_cells, cell_id)) break;
 
-                            gup_array_int_append(&tilled_cells, cell_id);
-                            gup_array_double_append(&tilled_cell_planted_at, GetTime());
+                            gup_array_int_append(&planted_cells, cell_id);
+                            gup_array_double_append(&planted_cells_planted_at, GetTime());
                             if (game_state.debug_mode) {
-                                gup_array_int_print(tilled_cells);
-                                gup_array_double_print(tilled_cell_planted_at);
+                                gup_array_int_print(planted_cells);
+                                gup_array_double_print(planted_cells_planted_at);
                             }
 
                             break;
                         }
                         case ITEM_ID_WATERING_CAN: {
+                            // TODO: animation
+
+                            const int cell_id = get_cell_id_player_is_facing(player);
+                            if (!player_is_facing_farmable_cell(player)) break;
+                            if (gup_array_int_has(wet_cells, cell_id)) break;
+
+                            gup_array_int_append(&wet_cells, get_cell_id_player_is_facing(player));
+                            if (game_state.debug_mode) gup_array_int_print(wet_cells);
+                            break;
+                        }
+                        case ITEM_ID_SCYTHE: {
                             // TODO: animation
 
                             const int cell_id = get_cell_id_player_is_facing(player);
@@ -403,6 +435,16 @@ int main(void) {
                 }
             }
 
+            // { // Chicken
+            //     // Seek the seeds
+            //     if (planted_cells.count > 0) {
+            //         Cell target = cell_id_to_cell(planted_cells.data[0]);
+            //         // TODO: continue to seek the seeds
+            //     }
+
+            //     chicken.rect.x += CHICKEN_WALKING_SPEED * GetFrameTime();
+            //     chicken.rect.y += CHICKEN_WALKING_SPEED / 2.0f * GetFrameTime();
+            // }
         }
 
         { // Draw
@@ -426,17 +468,17 @@ draw:       BeginDrawing();
                     );
                 }
                 // Draw tilled cells
-                for (int i = 0; i < tilled_cells.count; i++) {
-                    const float x = (tilled_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
-                    const float y = (tilled_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
+                for (int i = 0; i < planted_cells.count; i++) {
+                    const float x = (planted_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
+                    const float y = (planted_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
                     float plant_sprite_sheet_x = 16.0f;
-                    if (GetTime() - tilled_cell_planted_at.data[i] > 5.0) {
+                    if (GetTime() - planted_cells_planted_at.data[i] > 5.0) {
                         plant_sprite_sheet_x = 32.0f;
                     }
-                    if (GetTime() - tilled_cell_planted_at.data[i] > 10.0) {
+                    if (GetTime() - planted_cells_planted_at.data[i] > 10.0) {
                         plant_sprite_sheet_x = 48.0f;
                     }
-                    if (GetTime() - tilled_cell_planted_at.data[i] > 15.0) {
+                    if (GetTime() - planted_cells_planted_at.data[i] > 15.0) {
                         plant_sprite_sheet_x = 64.0f;
                     }
                     DrawTexturePro(
@@ -458,7 +500,7 @@ draw:       BeginDrawing();
                     }
 
                     // Draw cell player is standing in
-                    DrawRectangleRec(get_player_cell(player), (Color) { 230, 41, 55, 64 });
+                    DrawRectangleRec(get_character_cell_rect(player), (Color) { 230, 41, 55, 64 });
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
 
@@ -483,13 +525,33 @@ draw:       BeginDrawing();
                 );
 
                 // Draw cell player is looking at
-                DrawRectangleRec(get_cell_rect_player_is_facing(player), (Color) { 55, 41, 230, 64 });
+                DrawRectangleRec(get_cell_rect_character_is_facing(player), (Color) { 55, 41, 230, 64 });
+            
+                // Draw chicken
+                DrawTexturePro(
+                    chicken_sprite_sheet,
+                    (Rectangle) {
+                        CHICKEN_SPRITE_SHEET_STRIDE,
+                        CHICKEN_SPRITE_SHEET_STRIDE,
+                        CHICKEN_SPRITE_SHEET_STRIDE,
+                        CHICKEN_SPRITE_SHEET_STRIDE,
+                    },
+                    (Rectangle) {
+                        chicken.rect.x,
+                        chicken.rect.y,
+                        PLAYER_WIDTH,
+                        PLAYER_HEIGHT,
+                    },
+                    (Vector2) { 0.0f, 0.0f },
+                    0.0f,
+                    WHITE
+                );
             }
 
             { // Draw UI
-                { // Draw hoe in inventory
+                { // Draw inventory
                     DrawTexturePro(
-                        item_sprite_sheet,
+                        plants_sprite_sheet,
                         (Rectangle) {
                             inventory.items[0].sprite_sheet_pos.x,
                             inventory.items[0].sprite_sheet_pos.y,
@@ -526,6 +588,26 @@ draw:       BeginDrawing();
                         0.0f,
                         WHITE
                     );
+
+                    // Draw scythe
+                    DrawTexturePro(
+                        item_sprite_sheet,
+                        (Rectangle) {
+                            inventory.items[2].sprite_sheet_pos.x,
+                            inventory.items[2].sprite_sheet_pos.y,
+                            ITEM_SPRITE_SHEET_STRIDE,
+                            ITEM_SPRITE_SHEET_STRIDE,
+                        },
+                        (Rectangle) {
+                            inventory.rect.x + (inventory.rect.width / INVENTORY_CAPACITY * 2),
+                            inventory.rect.y,
+                            ITEM_SPRITE_SCALE,
+                            ITEM_SPRITE_SCALE,
+                        },
+                        (Vector2) { 0 },
+                        0.0f,
+                        WHITE
+                    );
                     
                     // Draw selected item in inventory
                     DrawRectangleLinesEx(
@@ -543,7 +625,7 @@ draw:       BeginDrawing();
                 // Draw UI debug stuff
                 if (game_state.debug_mode) { 
                     DrawFPS(10, 10);
-                    DrawText(TextFormat("Player pos: (%d, %d)", (int)get_player_pos(player).x, (int)get_player_pos(player).y), 10, 30, FONT_SIZE_DEBUG, WHITE);
+                    DrawText(TextFormat("Player pos: (%d, %d)", (int)get_character_pos(player).x, (int)get_character_pos(player).y), 10, 30, FONT_SIZE_DEBUG, WHITE);
                     DrawRectangleLinesEx(inventory.rect, 1.0f, ORANGE);
                 }
             }

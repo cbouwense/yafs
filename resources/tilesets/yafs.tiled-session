@@ -3,24 +3,29 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "map.tmx",
+    "activeFile": "map2.tmx",
     "expandedProjectPaths": [
         "."
     ],
     "fileStates": {
+        "biome.tsx": {
+            "scaleInDock": 4,
+            "scaleInEditor": 1
+        },
         "dirt.tsx": {
-            "scaleInDock": 2,
+            "scaleInDock": 4,
             "scaleInEditor": 2
         },
         "grass.tsx": {
-            "scaleInDock": 1,
+            "scaleInDock": 4,
             "scaleInEditor": 2
         },
         "hills.tsx": {
+            "scaleInDock": 4,
             "scaleInEditor": 2
         },
         "house.tsx": {
-            "scaleInDock": 1,
+            "scaleInDock": 4,
             "scaleInEditor": 1
         },
         "map.tmx": {
@@ -29,6 +34,14 @@
             "viewCenter": {
                 "x": 417.25,
                 "y": 325.5
+            }
+        },
+        "map2.tmx": {
+            "scale": 3,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": 235,
+                "y": 187.99999999999997
             }
         },
         "paths.tsx": {
@@ -47,15 +60,16 @@
     "map.tileWidth": 16,
     "map.width": 60,
     "openFiles": [
-        "map.tmx",
-        "grass.tsx",
-        "water.tsx",
-        "dirt.tsx"
+        "map2.tmx",
+        "house.tsx",
+        "biome.tsx"
     ],
     "project": "yafs.tiled-project",
     "recentFiles": [
-        "paths.tsx",
+        "biome.tsx",
         "house.tsx",
+        "map2.tmx",
+        "paths.tsx",
         "hills.tsx",
         "dirt.tsx",
         "water.tsx",
