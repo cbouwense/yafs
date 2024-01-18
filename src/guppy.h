@@ -152,6 +152,7 @@ GupArrayInt    gup_array_int_filter(GupArrayInt xs, bool (*fn)(int));
 void           gup_array_int_filter_in_place(GupArrayInt *xs, bool (*fn)(int));
 int            gup_array_int_reduce(GupArrayInt xs, int (*fn)(int, int), int start);
 bool           gup_array_int_has(GupArrayInt xs, int x);
+GupArrayInt    gup_array_int_remove_all(GupArrayInt xs, int x);
 
 GupArrayLong   gup_array_long();
 void           gup_array_long_free(GupArrayLong xs);
@@ -799,6 +800,41 @@ bool gup_array_string_has(GupArrayString xs, GupString x) {
     }
     return false;
 }
+
+// #define GUP_DEFINE_ARRAY_REMOVE_ALL(U, l, t) GupArray##U gup_array_##l##_remove_all(GupArray##U xs, t x) {\
+//     GupArray##U new = gup_array_##t##();                                                                  \
+//                                                                                                           \
+//     for (int i = 0; i < xs.count; i++) {                                                                  \
+//         if (xs.data[i] != x) {                                                                            \
+//             gup_array_##l##_append(&new, xs.data[i]);                                                     \
+//         }                                                                                                 \
+//     }                                                                                                     \
+//                                                                                                           \
+//     // TODO: free xs?                                                                                     \
+//     return new;                                                                                           \
+// }                                                                                                         \
+
+GupArrayInt gup_array_int_remove_all(GupArrayInt xs, int x) {
+    GupArrayInt new = gup_array_int();
+
+    for (int i = 0; i < xs.count; i++) {
+        if (xs.data[i] != x) {
+            gup_array_int_append(&new, xs.data[i]);
+        }
+    }
+
+    // TODO: free xs?
+    return new;
+}
+
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Bool, bool, bool)
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Char, char, char)
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Double, double, double)
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Float, float, float)
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Int, int, int)
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Long, long, long)
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Short, short, short)
+// GUP_DEFINE_ARRAY_REMOVE_ALL(Ptr, ptr, void*)
 
 // Memory ------------------------------------------------------------------------------------------
 

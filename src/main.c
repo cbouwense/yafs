@@ -100,6 +100,8 @@ typedef struct GameState {
 typedef struct Cell {
     int x; // col
     int y; // row
+    double plantedAt;
+    double wettedAt;
 } Cell;
 
 typedef struct Item {
@@ -196,8 +198,11 @@ bool is_cell_in_area(Cell needle, Cell haystack, int cols, int rows) {
     return true;
 }
 
+static Cell cells[MAP_COLS * MAP_ROWS];
+
 Cell cell_id_to_cell(const int cell_id) {
-    return (Cell) { cell_id % MAP_COLS, cell_id / MAP_COLS };
+    // TODO: cells has to be moved to static and it's real bad
+    return cells[cell_id];
 }
 
 int cell_to_cell_id(const Cell cell) {
@@ -205,14 +210,30 @@ int cell_to_cell_id(const Cell cell) {
 }
 
 bool player_is_facing_farmable_cell(Character player) {
-    const Cell cell = get_cell_player_is_facing(player);
+    const int cell_id = get_cell_id_player_is_facing(player);
 
-    // TODO: hardcoding these for now. Ideally we could somehow parse this from the tilemap.
+    // TODO: hardcoding these for now. Ideally we could somehow parse this from the tilemap,
+    // or do literally anything smarter than this.
     return (
-        is_cell_in_area(cell, cell_id_to_cell(280), 4, 4) ||
-        is_cell_in_area(cell, cell_id_to_cell(286), 4, 4) ||
-        is_cell_in_area(cell, cell_id_to_cell(460), 4, 4) ||
-        is_cell_in_area(cell, cell_id_to_cell(466), 4, 4)
+        cell_id == 280 || cell_id == 281 || cell_id == 282 || cell_id == 283 ||
+        cell_id == 310 || cell_id == 311 || cell_id == 312 || cell_id == 313 ||
+        cell_id == 340 || cell_id == 341 || cell_id == 342 || cell_id == 343 ||
+        cell_id == 370 || cell_id == 371 || cell_id == 372 || cell_id == 373 ||
+
+        cell_id == 286 || cell_id == 287 || cell_id == 288 || cell_id == 289 ||
+        cell_id == 316 || cell_id == 317 || cell_id == 318 || cell_id == 319 ||
+        cell_id == 346 || cell_id == 347 || cell_id == 348 || cell_id == 349 ||
+        cell_id == 376 || cell_id == 377 || cell_id == 378 || cell_id == 379 ||
+
+        cell_id == 460 || cell_id == 461 || cell_id == 462 || cell_id == 463 ||
+        cell_id == 490 || cell_id == 491 || cell_id == 492 || cell_id == 493 ||
+        cell_id == 520 || cell_id == 521 || cell_id == 522 || cell_id == 523 ||
+        cell_id == 550 || cell_id == 551 || cell_id == 552 || cell_id == 553 ||
+
+        cell_id == 466 || cell_id == 467 || cell_id == 468 || cell_id == 469 ||
+        cell_id == 496 || cell_id == 497 || cell_id == 498 || cell_id == 499 ||
+        cell_id == 526 || cell_id == 527 || cell_id == 528 || cell_id == 529 ||
+        cell_id == 556 || cell_id == 557 || cell_id == 558 || cell_id == 559
     );
 }
 
@@ -237,9 +258,6 @@ int main(void) {
     Texture2D map;
     Texture2D plants_sprite_sheet;
     Texture2D chicken_sprite_sheet;
-    GupArrayInt wet_cells = gup_array_int();
-    GupArrayInt planted_cells = gup_array_int();
-    GupArrayDouble planted_cells_planted_at = gup_array_double();
 
     { // Initialization
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
@@ -255,6 +273,15 @@ int main(void) {
             .debug_mode = false,
             .paused = false,
         };
+
+        for (int i = 0; i < MAP_COLS * MAP_ROWS; i++) {
+            cells[i] = (Cell) {
+                .x = (i % MAP_COLS) * MAP_CELL_SIZE * MAP_SCALE,
+                .y = (i / MAP_COLS) * MAP_CELL_SIZE * MAP_SCALE,
+                .plantedAt = 0,
+                .wettedAt = 0,
+            };
+        }
 
         player = (Character) {
             .rect = (Rectangle) {
@@ -359,39 +386,31 @@ int main(void) {
                         case ITEM_ID_SEEDS: {
                             // TODO: animation
 
-                            const int cell_id = get_cell_id_player_is_facing(player);
+                            const int id = get_cell_id_player_is_facing(player);
                             if (!player_is_facing_farmable_cell(player)) break;
-                            if (gup_array_int_has(planted_cells, cell_id)) break;
+                            if (cells[id].plantedAt > 0) break;
 
-                            gup_array_int_append(&planted_cells, cell_id);
-                            gup_array_double_append(&planted_cells_planted_at, GetTime());
-                            if (game_state.debug_mode) {
-                                gup_array_int_print(planted_cells);
-                                gup_array_double_print(planted_cells_planted_at);
-                            }
-
+                            cells[id].plantedAt = GetTime();
                             break;
                         }
                         case ITEM_ID_WATERING_CAN: {
                             // TODO: animation
 
-                            const int cell_id = get_cell_id_player_is_facing(player);
+                            const int id = get_cell_id_player_is_facing(player);
                             if (!player_is_facing_farmable_cell(player)) break;
-                            if (gup_array_int_has(wet_cells, cell_id)) break;
+                            if (cells[id].wettedAt > 0) break;
 
-                            gup_array_int_append(&wet_cells, get_cell_id_player_is_facing(player));
-                            if (game_state.debug_mode) gup_array_int_print(wet_cells);
+                            cells[id].wettedAt = GetTime();
                             break;
                         }
                         case ITEM_ID_SCYTHE: {
                             // TODO: animation
 
-                            const int cell_id = get_cell_id_player_is_facing(player);
-                            if (!player_is_facing_farmable_cell(player)) break;
-                            if (gup_array_int_has(wet_cells, cell_id)) break;
+                            const int id = get_cell_id_player_is_facing(player);
+                            if (cells[id].plantedAt == 0) break;
 
-                            gup_array_int_append(&wet_cells, get_cell_id_player_is_facing(player));
-                            if (game_state.debug_mode) gup_array_int_print(wet_cells);
+                            // TODO: maybe check if the crop was grown. If so spawn a head of wheat?
+                            cells[id].plantedAt = 0;
                             break;
                         }
                         default: {
@@ -434,17 +453,6 @@ int main(void) {
                     }
                 }
             }
-
-            // { // Chicken
-            //     // Seek the seeds
-            //     if (planted_cells.count > 0) {
-            //         Cell target = cell_id_to_cell(planted_cells.data[0]);
-            //         // TODO: continue to seek the seeds
-            //     }
-
-            //     chicken.rect.x += CHICKEN_WALKING_SPEED * GetFrameTime();
-            //     chicken.rect.y += CHICKEN_WALKING_SPEED / 2.0f * GetFrameTime();
-            // }
         }
 
         { // Draw
@@ -455,40 +463,42 @@ draw:       BeginDrawing();
                 // Draw map
                 DrawTextureEx(map, (Vector2) { 0.0f, 0.0f }, 0.0f, MAP_SCALE, WHITE);
 
-                // Draw wet cells
-                for (int i = 0; i < wet_cells.count; i++) {
-                    const float x = (wet_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
-                    const float y = (wet_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
-                    DrawRectangle(
-                        x,
-                        y,
-                        MAP_CELL_SIZE * MAP_SCALE,
-                        MAP_CELL_SIZE * MAP_SCALE,
-                        (Color) { 0, 0, 64, 32 }
-                    );
-                }
-                // Draw tilled cells
-                for (int i = 0; i < planted_cells.count; i++) {
-                    const float x = (planted_cells.data[i] % MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
-                    const float y = (planted_cells.data[i] / MAP_COLS) * (MAP_CELL_SIZE * MAP_SCALE);
-                    float plant_sprite_sheet_x = 16.0f;
-                    if (GetTime() - planted_cells_planted_at.data[i] > 5.0) {
-                        plant_sprite_sheet_x = 32.0f;
+                // Draw additions to cells
+                // TODO: this is relatively slow because we have to go through all of the cells
+                // every frame. What would be better is if we could know beforehand which cells
+                // needed to be drawn.
+                for (int i = 0; i < MAP_COLS * MAP_ROWS; i++) {
+                    // Draw planted cells
+                    if (cells[i].plantedAt > 0) {
+                        float plant_sprite_sheet_x = 16.0f;
+                        if (GetTime() - cells[i].plantedAt > 5.0) {
+                            plant_sprite_sheet_x = 32.0f;
+                        }
+                        if (GetTime() - cells[i].plantedAt > 10.0) {
+                            plant_sprite_sheet_x = 48.0f;
+                        }
+                        if (GetTime() - cells[i].plantedAt > 15.0) {
+                            plant_sprite_sheet_x = 64.0f;
+                        }
+                        DrawTexturePro(
+                            plants_sprite_sheet,
+                            (Rectangle) { plant_sprite_sheet_x, 0.0f, PLANTS_SPRITE_SHEET_STRIDE, PLANTS_SPRITE_SHEET_STRIDE },
+                            (Rectangle) { cells[i].x, cells[i].y, MAP_CELL_SIZE * MAP_SCALE, MAP_CELL_SIZE * MAP_SCALE },
+                            (Vector2) { 0, 0 },
+                            0.0f,
+                            WHITE
+                        );
                     }
-                    if (GetTime() - planted_cells_planted_at.data[i] > 10.0) {
-                        plant_sprite_sheet_x = 48.0f;
+
+                    if (cells[i].wettedAt > 0) {
+                        DrawRectangle(
+                            cells[i].x,
+                            cells[i].y,
+                            MAP_CELL_SIZE * MAP_SCALE,
+                            MAP_CELL_SIZE * MAP_SCALE,
+                            (Color) { 0, 0, 64, 32 }
+                        );
                     }
-                    if (GetTime() - planted_cells_planted_at.data[i] > 15.0) {
-                        plant_sprite_sheet_x = 64.0f;
-                    }
-                    DrawTexturePro(
-                        plants_sprite_sheet,
-                        (Rectangle) { plant_sprite_sheet_x, 0.0f, PLANTS_SPRITE_SHEET_STRIDE, PLANTS_SPRITE_SHEET_STRIDE },
-                        (Rectangle) { x, y, MAP_CELL_SIZE * MAP_SCALE, MAP_CELL_SIZE * MAP_SCALE },
-                        (Vector2) { 0, 0 },
-                        0.0f,
-                        WHITE
-                    );
                 }
 
                 // Draw game objects debug info
@@ -504,48 +514,50 @@ draw:       BeginDrawing();
                     DrawRectangleLinesEx(player.rect, 1.0f, ORANGE);
                 }
 
-                // Draw player
-                DrawTexturePro(
-                    player_sprite_sheet,
-                    (Rectangle) {
-                        player_sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
-                        player_sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
-                        PLAYER_SPRITE_SHEET_STRIDE,
-                        PLAYER_SPRITE_SHEET_STRIDE,
-                    },
-                    (Rectangle) {
-                        player.rect.x,
-                        player.rect.y,
-                        PLAYER_WIDTH * PLAYER_SPRITE_SCALE,
-                        PLAYER_HEIGHT * PLAYER_SPRITE_SCALE,
-                    },
-                    (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
-                    0.0f,
-                    WHITE
-                );
+                { // Draw player
+                    DrawTexturePro(
+                        player_sprite_sheet,
+                        (Rectangle) {
+                            player_sprite_sheet_col * PLAYER_SPRITE_SHEET_STRIDE,
+                            player_sprite_sheet_row * PLAYER_SPRITE_SHEET_STRIDE,
+                            PLAYER_SPRITE_SHEET_STRIDE,
+                            PLAYER_SPRITE_SHEET_STRIDE,
+                        },
+                        (Rectangle) {
+                            player.rect.x,
+                            player.rect.y,
+                            PLAYER_WIDTH * PLAYER_SPRITE_SCALE,
+                            PLAYER_HEIGHT * PLAYER_SPRITE_SCALE,
+                        },
+                        (Vector2) { PLAYER_WIDTH, PLAYER_HEIGHT },
+                        0.0f,
+                        WHITE
+                    );
+                }
 
                 // Draw cell player is looking at
                 DrawRectangleRec(get_cell_rect_character_is_facing(player), (Color) { 55, 41, 230, 64 });
             
-                // Draw chicken
-                DrawTexturePro(
-                    chicken_sprite_sheet,
-                    (Rectangle) {
-                        CHICKEN_SPRITE_SHEET_STRIDE,
-                        CHICKEN_SPRITE_SHEET_STRIDE,
-                        CHICKEN_SPRITE_SHEET_STRIDE,
-                        CHICKEN_SPRITE_SHEET_STRIDE,
-                    },
-                    (Rectangle) {
-                        chicken.rect.x,
-                        chicken.rect.y,
-                        PLAYER_WIDTH,
-                        PLAYER_HEIGHT,
-                    },
-                    (Vector2) { 0.0f, 0.0f },
-                    0.0f,
-                    WHITE
-                );
+                { // Draw chicken
+                    DrawTexturePro(
+                        chicken_sprite_sheet,
+                        (Rectangle) {
+                            CHICKEN_SPRITE_SHEET_STRIDE,
+                            CHICKEN_SPRITE_SHEET_STRIDE,
+                            CHICKEN_SPRITE_SHEET_STRIDE,
+                            CHICKEN_SPRITE_SHEET_STRIDE,
+                        },
+                        (Rectangle) {
+                            chicken.rect.x,
+                            chicken.rect.y,
+                            PLAYER_WIDTH,
+                            PLAYER_HEIGHT,
+                        },
+                        (Vector2) { 0.0f, 0.0f },
+                        0.0f,
+                        WHITE
+                    );
+                }
             }
 
             { // Draw UI
@@ -635,8 +647,6 @@ draw:       BeginDrawing();
 
     }
     
-    gup_array_int_free(wet_cells);
-
     UnloadTexture(player_sprite_sheet);
     CloseAudioDevice();
     CloseWindow();
