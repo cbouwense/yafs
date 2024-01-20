@@ -237,6 +237,10 @@ bool player_is_facing_farmable_cell(Character player) {
     );
 }
 
+bool is_cell_full_grown(Cell cell) {
+    return GetTime() - cell.plantedAt > 15.0;
+}
+
 int main(void) {
     // SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(WINDOW_INIT_WIDTH, WINDOW_INIT_HEIGHT, "YAFS");
@@ -409,8 +413,11 @@ int main(void) {
                             const int id = get_cell_id_player_is_facing(player);
                             if (cells[id].plantedAt == 0) break;
 
-                            // TODO: maybe check if the crop was grown. If so spawn a head of wheat?
-                            cells[id].plantedAt = 0;
+                            if (is_cell_full_grown(cells[id])) {
+                                // TODO: Spawn head of wheat above head
+                                cells[id].plantedAt = 0;
+                            }
+                            
                             break;
                         }
                         default: {
