@@ -49,6 +49,9 @@
 #define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
 #define PLAYER_RUNNING_SPEED_ANIM_MILLIS 100
 
+#define WHEAT_FLOAT_SPEED 50.0f
+#define WHEAT_FADE_SPEED 100.0f
+
 #define INVENTORY_CAPACITY 5
 
 #define ITEM_SPRITE_SCALE 100.0f
@@ -126,6 +129,7 @@ typedef enum {
 typedef struct Character {
     Rectangle rect;
     Direction dir;
+    double wheatHarvestedAt;
 } Character;
 
 Vector2 get_character_pos(Character player) {
@@ -238,7 +242,7 @@ bool player_is_facing_farmable_cell(Character player) {
 }
 
 bool is_cell_full_grown(Cell cell) {
-    return GetTime() - cell.plantedAt > 15.0;
+    return GetTime() - cell.plantedAt > 3.0;
 }
 
 int main(void) {
@@ -293,7 +297,8 @@ int main(void) {
                 .y = vh(50),
                 .width = PLAYER_WIDTH,
                 .height = PLAYER_HEIGHT,
-            }
+            },
+            .wheatHarvestedAt = 0,
         };
 
         chicken = (Character) {
@@ -414,7 +419,7 @@ int main(void) {
                             if (cells[id].plantedAt == 0) break;
 
                             if (is_cell_full_grown(cells[id])) {
-                                // TODO: Spawn head of wheat above head
+                                player.wheatHarvestedAt = GetTime();
                                 cells[id].plantedAt = 0;
                             }
                             
@@ -425,6 +430,12 @@ int main(void) {
                             break;
                         }
                     }
+                }
+            }
+
+            { // Effects
+                if (GetTime() - player.wheatHarvestedAt > 1) {
+                    player.wheatHarvestedAt = 0;
                 }
             }
 
@@ -478,13 +489,13 @@ draw:       BeginDrawing();
                     // Draw planted cells
                     if (cells[i].plantedAt > 0) {
                         float plant_sprite_sheet_x = 16.0f;
-                        if (GetTime() - cells[i].plantedAt > 5.0) {
+                        if (GetTime() - cells[i].plantedAt > 1.0) {
                             plant_sprite_sheet_x = 32.0f;
                         }
-                        if (GetTime() - cells[i].plantedAt > 10.0) {
+                        if (GetTime() - cells[i].plantedAt > 2.0) {
                             plant_sprite_sheet_x = 48.0f;
                         }
-                        if (GetTime() - cells[i].plantedAt > 15.0) {
+                        if (GetTime() - cells[i].plantedAt > 3.0) {
                             plant_sprite_sheet_x = 64.0f;
                         }
                         DrawTexturePro(
@@ -540,6 +551,33 @@ draw:       BeginDrawing();
                         0.0f,
                         WHITE
                     );
+
+                    // Draw wheat above head if you just harvested some.
+                    if (GetTime() > 1 && GetTime() - player.wheatHarvestedAt < 1.0) {
+                        const float wheatTimeAlive = (GetTime() - player.wheatHarvestedAt) * WHEAT_FLOAT_SPEED;
+                        const unsigned char wheatAlpha = (int)(wheatTimeAlive * wheatTimeAlive / 5) <= 255
+                            ? (unsigned char)(wheatTimeAlive * wheatTimeAlive / 5) 
+                            : 255;
+
+                        DrawTexturePro(
+                            plants_sprite_sheet,
+                            (Rectangle) {
+                                5 * PLANTS_SPRITE_SHEET_STRIDE,
+                                0,
+                                PLANTS_SPRITE_SHEET_STRIDE,
+                                PLANTS_SPRITE_SHEET_STRIDE,
+                            },
+                            (Rectangle) {
+                                player.rect.x,
+                                player.rect.y - (player.rect.height / 2) - wheatTimeAlive,
+                                player.rect.width,
+                                player.rect.height,
+                            },
+                            (Vector2) { 0.0f, 0.0f },
+                            0.0f,
+                            (Color) { 255, 255, 255, 255 - wheatAlpha }
+                        );
+                    }
                 }
 
                 // Draw cell player is looking at
