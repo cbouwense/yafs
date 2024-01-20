@@ -49,6 +49,8 @@
 #define PLAYER_WALKING_SPEED_ANIM_MILLIS 250
 #define PLAYER_RUNNING_SPEED_ANIM_MILLIS 100
 
+#define TOOL_ANIM_SPRITE_SHEET_STRIDE 16.0f
+
 #define WHEAT_FLOAT_SPEED 50.0f
 #define WHEAT_FADE_SPEED 100.0f
 
@@ -266,12 +268,14 @@ int main(void) {
     Texture2D map;
     Texture2D plants_sprite_sheet;
     Texture2D chicken_sprite_sheet;
+    Texture2D tool_anim_sprite_sheet;
 
     { // Initialization
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
         map = LoadTexture("resources/tilesets/map2.png");
         plants_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_Plants.png");
         player_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/basic-character-spritesheet.png");
+        tool_anim_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/Tools.png");
         chicken_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Characters/free-chicken-sprites.png");
 
         player_sprite_sheet_row = 0;
@@ -579,6 +583,30 @@ draw:       BeginDrawing();
                         );
                     }
                 }
+
+                // Draw tool in hand
+                const int now_in_millis = (int)(GetTime() * 1000.0f);
+                float tool_anim_sprite_sheet_col = 0.0f;
+                if (now_in_millis % 500 < 125) {
+                    tool_anim_sprite_sheet_col = 2.0f;
+                } else if (now_in_millis % 500 < 250) {
+                    tool_anim_sprite_sheet_col = 1.0f;
+                } else {
+                    tool_anim_sprite_sheet_col = 0.0f;
+                }
+                DrawTexturePro(
+                    tool_anim_sprite_sheet,
+                    (Rectangle) {
+                        tool_anim_sprite_sheet_col * TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                        5 * TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                        TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                        TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                    },
+                    player.rect,
+                    (Vector2) { 0 },
+                    0.0f,
+                    WHITE
+                );
 
                 // Draw cell player is looking at
                 DrawRectangleRec(get_cell_rect_character_is_facing(player), (Color) { 55, 41, 230, 64 });
