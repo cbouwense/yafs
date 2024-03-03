@@ -68,6 +68,7 @@
 void xml_start(void *data, const char *el, const char **attr) {
     Rectangle *collision = (Rectangle *)data;
     
+    // TODO: Really, this only does the first one.
     if (strcmp(el, "object") == 0) {
         attr += 2;
         collision->x = (float)atof(attr[1]) * MAP_SCALE;
@@ -112,30 +113,6 @@ float vh(float vh) {
 
 float vw(float vw) {
     return GetRenderWidth() * vw * 0.01;
-}
-
-float x_center(float width) {
-    return GetRenderWidth() / 2 - width / 2;
-}
-
-float y_center(float height) {
-    return GetRenderHeight() / 2 - height / 2;
-}
-
-float top() {
-    return 0;
-}
-
-float right() {
-    return GetRenderWidth();
-}
-
-float bottom() {
-    return GetRenderHeight();
-}
-
-float left() {
-    return 0;
 }
 
 typedef struct GameState {
