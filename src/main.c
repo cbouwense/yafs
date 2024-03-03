@@ -5,7 +5,7 @@
 #include <string.h>
 #include <complex.h>
 #include <math.h>
-
+#include <expat.h>
 #include <raylib.h>
 #include <raymath.h>
 
@@ -62,6 +62,47 @@
 #define ITEM_ID_SEEDS 0
 #define ITEM_ID_WATERING_CAN 1
 #define ITEM_ID_SCYTHE 2
+
+// XML ---------------------------------------------------------------------------------------------
+
+void xml_start(void *data, const char *el, const char **attr) {
+    Rectangle *collision = (Rectangle *)data;
+    
+    if (strcmp(el, "object") == 0) {
+        attr += 2;
+        collision->x = (float)atof(attr[1]) * MAP_SCALE;
+
+        attr += 2;
+        collision->y = (float)atof(attr[1]) * MAP_SCALE;
+
+        attr += 2;
+        collision->width = (float)atof(attr[1]) * MAP_SCALE;
+
+        attr += 2;
+        collision->height = (float)atof(attr[1]) * MAP_SCALE;
+    }
+}
+
+void xml_end(void *data, const char *el) {
+    // noop
+}
+
+void parse_collision(Rectangle *collision) {
+    XML_Parser parser = XML_ParserCreate(NULL);
+    XML_SetElementHandler(parser, xml_start, xml_end);
+    XML_SetUserData(parser, collision);
+
+    char *xml = gup_file_read_as_cstr("resources/tilesets/map2.tmx");
+
+    int done = 1;
+    if (XML_Parse(parser, xml, strlen(xml), done) == XML_STATUS_ERROR) {
+        printf("Error: %s\n", XML_ErrorString(XML_GetErrorCode(parser)));
+    }
+
+    XML_ParserFree(parser);
+    free(xml);
+}
+
 
 // CSS-like helpers --------------------------------------------------------------------------------
 
@@ -131,7 +172,8 @@ typedef enum {
 typedef struct Character {
     Rectangle rect;
     Direction dir;
-    double wheatHarvestedAt;
+    double wheat_harvested_at;
+    double swung_scythe_at;
 } Character;
 
 Vector2 get_character_pos(Character player) {
@@ -266,11 +308,16 @@ int main(void) {
     Texture2D item_sprite_sheet;
 
     Texture2D map;
+    Rectangle collision;
+
     Texture2D plants_sprite_sheet;
     Texture2D chicken_sprite_sheet;
     Texture2D tool_anim_sprite_sheet;
 
     { // Initialization
+        parse_collision(&collision);
+        TraceLog(LOG_DEBUG, TextFormat("rect: {.x = %f, .y = %f, .width = %f, .height = %f }\n", collision.x, collision.y, collision.width, collision.height));
+
         item_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_tools_and_materials.png");
         map = LoadTexture("resources/tilesets/map2.png");
         plants_sprite_sheet = LoadTexture("resources/sprout-lands-sprites/Objects/Basic_Plants.png");
@@ -302,7 +349,7 @@ int main(void) {
                 .width = PLAYER_WIDTH,
                 .height = PLAYER_HEIGHT,
             },
-            .wheatHarvestedAt = 0,
+            .wheat_harvested_at = 0,
         };
 
         chicken = (Character) {
@@ -374,17 +421,19 @@ int main(void) {
             const float speed = is_running ? PLAYER_RUNNING_SPEED : PLAYER_WALKING_SPEED;
 
             Vector2 scaled_pos_diff = Vector2Scale(pos_diff_normalized, speed * GetFrameTime());
-            Vector2 new_pos = {
+
+            // Check what the new player rect would be if we were to move as much as
+            // the new position would like us to. We will then check if this is possible.
+            Rectangle hypothetical_player_rect = {
                 .x = player.rect.x + scaled_pos_diff.x,
-                .y = player.rect.y + scaled_pos_diff.y
+                .y = player.rect.y + scaled_pos_diff.y,
+                .width = player.rect.width,
+                .height = player.rect.height,
             };
 
-            // TODO: hardcoding these for now. Ideally this would be parsed from the map.
-            if (new_pos.x > MAP_CELL_SIZE * MAP_SCALE * 4.0f && new_pos.x < MAP_WIDTH - (MAP_CELL_SIZE * MAP_SCALE * 4.0f) - player.rect.width) {
-                player.rect.x = new_pos.x;
-            }
-            if (new_pos.y > MAP_CELL_SIZE * MAP_SCALE * 4.0f && new_pos.y < MAP_HEIGHT - player.rect.height) {
-                player.rect.y = new_pos.y;
+            if (!CheckCollisionRecs(hypothetical_player_rect, collision)) {
+                // TODO: this probably isn't right i guess id need to cehck both axes?
+                player.rect = hypothetical_player_rect;
             }
 
             { // Items
@@ -397,8 +446,6 @@ int main(void) {
                 if (IsKeyPressed(KEY_SPACE)) {
                     switch (inventory.items[inventory.selected_idx].id) {
                         case ITEM_ID_SEEDS: {
-                            // TODO: animation
-
                             const int id = get_cell_id_player_is_facing(player);
                             if (!player_is_facing_farmable_cell(player)) break;
                             if (cells[id].plantedAt > 0) break;
@@ -417,13 +464,14 @@ int main(void) {
                             break;
                         }
                         case ITEM_ID_SCYTHE: {
-                            // TODO: animation
-
+                            // Play animation every time.
+                            player.swung_scythe_at = GetTime();
+                            
                             const int id = get_cell_id_player_is_facing(player);
                             if (cells[id].plantedAt == 0) break;
 
                             if (is_cell_full_grown(cells[id])) {
-                                player.wheatHarvestedAt = GetTime();
+                                player.wheat_harvested_at = GetTime();
                                 cells[id].plantedAt = 0;
                             }
                             
@@ -437,9 +485,13 @@ int main(void) {
                 }
             }
 
-            { // Effects
-                if (GetTime() - player.wheatHarvestedAt > 1) {
-                    player.wheatHarvestedAt = 0;
+            { // Timers
+                if (GetTime() - player.wheat_harvested_at > 1) {
+                    player.wheat_harvested_at = 0;
+                }
+
+                if ((GetTime() - player.swung_scythe_at) * 1000 > 500) {
+                    player.swung_scythe_at = 0;
                 }
             }
 
@@ -557,8 +609,8 @@ draw:       BeginDrawing();
                     );
 
                     // Draw wheat above head if you just harvested some.
-                    if (GetTime() > 1 && GetTime() - player.wheatHarvestedAt < 1.0) {
-                        const float wheatTimeAlive = (GetTime() - player.wheatHarvestedAt) * WHEAT_FLOAT_SPEED;
+                    if (GetTime() > 1 && GetTime() - player.wheat_harvested_at < 1.0) {
+                        const float wheatTimeAlive = (GetTime() - player.wheat_harvested_at) * WHEAT_FLOAT_SPEED;
                         const unsigned char wheatAlpha = (int)(wheatTimeAlive * wheatTimeAlive / 5) <= 255
                             ? (unsigned char)(wheatTimeAlive * wheatTimeAlive / 5) 
                             : 255;
@@ -587,26 +639,53 @@ draw:       BeginDrawing();
                 // Draw tool in hand
                 const int now_in_millis = (int)(GetTime() * 1000.0f);
                 float tool_anim_sprite_sheet_col = 0.0f;
-                if (now_in_millis % 500 < 125) {
-                    tool_anim_sprite_sheet_col = 2.0f;
-                } else if (now_in_millis % 500 < 250) {
-                    tool_anim_sprite_sheet_col = 1.0f;
-                } else {
-                    tool_anim_sprite_sheet_col = 0.0f;
+                // TODO: lots of magic numbers here. Potential to DRY this up.
+                switch (player.dir) {
+                    case UP: {
+                        break;
+                    }
+
+                    case DOWN: {
+                        // Intentional fall through.
+                    }
+
+                    case LEFT: {
+                        if (now_in_millis % 500 < 125) {
+                            tool_anim_sprite_sheet_col = 2.0f;
+                        } else if (now_in_millis % 500 < 250) {
+                            tool_anim_sprite_sheet_col = 1.0f;
+                        } else {
+                            tool_anim_sprite_sheet_col = 0.0f;
+                        }
+                        break;
+                    }
+
+                    case RIGHT: {
+                        if (now_in_millis % 500 < 125) {
+                            tool_anim_sprite_sheet_col = 3.0f;
+                        } else if (now_in_millis % 500 < 250) {
+                            tool_anim_sprite_sheet_col = 4.0f;
+                        } else {
+                            tool_anim_sprite_sheet_col = 5.0f;
+                        }
+                        break;
+                    }
                 }
-                DrawTexturePro(
-                    tool_anim_sprite_sheet,
-                    (Rectangle) {
-                        tool_anim_sprite_sheet_col * TOOL_ANIM_SPRITE_SHEET_STRIDE,
-                        5 * TOOL_ANIM_SPRITE_SHEET_STRIDE,
-                        TOOL_ANIM_SPRITE_SHEET_STRIDE,
-                        TOOL_ANIM_SPRITE_SHEET_STRIDE,
-                    },
-                    player.rect,
-                    (Vector2) { 0 },
-                    0.0f,
-                    WHITE
-                );
+                if (player.dir != UP && inventory.selected_idx == ITEM_ID_SCYTHE && player.swung_scythe_at != 0) {
+                    DrawTexturePro(
+                        tool_anim_sprite_sheet,
+                        (Rectangle) {
+                            tool_anim_sprite_sheet_col * TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                            5 * TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                            TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                            TOOL_ANIM_SPRITE_SHEET_STRIDE,
+                        },
+                        player.rect,
+                        (Vector2) { 0 },
+                        0.0f,
+                        WHITE
+                    );
+                }
 
                 // Draw cell player is looking at
                 DrawRectangleRec(get_cell_rect_character_is_facing(player), (Color) { 55, 41, 230, 64 });
@@ -712,6 +791,7 @@ draw:       BeginDrawing();
                     DrawFPS(10, 10);
                     DrawText(TextFormat("Player pos: (%d, %d)", (int)get_character_pos(player).x, (int)get_character_pos(player).y), 10, 30, FONT_SIZE_DEBUG, WHITE);
                     DrawRectangleLinesEx(inventory.rect, 1.0f, ORANGE);
+                    DrawRectangleLinesEx(collision, 1.0f, ORANGE);
                 }
             }
 

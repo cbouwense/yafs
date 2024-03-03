@@ -251,7 +251,7 @@ bool build_main(Config config)
                     nob_cmd_append(&cmd,
                         nob_temp_sprintf("-L./build/raylib/%s", NOB_ARRAY_GET(target_names, config.target)),
                         "-l:libraylib.a");
-                    nob_cmd_append(&cmd, "-lm", "-ldl", "-lpthread");
+                    nob_cmd_append(&cmd, "-lm", "-ldl", "-lpthread", "-lexpat");
                 if (!nob_cmd_run_sync(cmd)) nob_return_defer(false);
             }
         } break;

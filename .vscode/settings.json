@@ -13,7 +13,9 @@
     "random": "c",
     "numeric": "c",
     "array": "c",
-    "type_traits": "c"
+    "type_traits": "c",
+    "yxml.h": "c"
   },
-  "cmake.configureOnOpen": false
+  "cmake.configureOnOpen": false,
+  "C_Cpp.errorSquiggles": "disabled"
 }

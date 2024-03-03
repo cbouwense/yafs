@@ -38,10 +38,10 @@
         },
         "map2.tmx": {
             "scale": 3,
-            "selectedLayer": 3,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": 235,
-                "y": 187.99999999999997
+                "x": 210.66666666666666,
+                "y": 250.99999999999997
             }
         },
         "paths.tsx": {
@@ -66,9 +66,9 @@
     ],
     "project": "yafs.tiled-project",
     "recentFiles": [
+        "map2.tmx",
         "biome.tsx",
         "house.tsx",
-        "map2.tmx",
         "paths.tsx",
         "hills.tsx",
         "dirt.tsx",
